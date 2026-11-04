@@ -42,7 +42,12 @@ if not sb.auth.get_session():
                 st.error("No se pudo crear la cuenta. Intenta más tarde.")
     st.stop()
 try:
-    user = sb.auth.get_user().user  # validate/refresh through SDK, never trust UI role selection
+    user = sb.auth.get_user().user  # validate with Auth; never trust a UI role selection
+    session = sb.auth.get_session()
+    if session.user.app_metadata.get("role") != user.app_metadata.get("role"):
+        # Authorization claims stay stale until a new JWT is issued.
+        sb.auth.refresh_session()
+        st.rerun()
 except Exception:
     st.session_state.clear()
     st.error("La sesión expiró. Vuelve a cargar la página e ingresa.")
