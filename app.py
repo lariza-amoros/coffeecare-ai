@@ -6,11 +6,11 @@ import streamlit as st
 from supabase import create_client
 from core import CLASSES, clean_image
 from inference import load_model, predict
-from ui import page_header, photo_steps, LABELS
+from ui import page_header, photo_steps, LABELS, show_leaf
 
 st.set_page_config(page_title="CoffeeCare AI", page_icon="🌿", layout="centered")
 page_header()
-st.warning("Prototipo experimental: distingue hojas saludables, roya y Cercospora. Una foto no confirma el diagnóstico y el modelo puede equivocarse incluso con puntuación alta. Otras enfermedades requieren revisión.")
+st.warning("Prototipo experimental: distingue roya, Cercospora y hojas sin síntomas de esas clases. Una foto no confirma el diagnóstico y el modelo puede equivocarse incluso con puntuación alta. Otras enfermedades requieren revisión.")
 
 if "SUPABASE_URL" not in st.secrets or "SUPABASE_KEY" not in st.secrets:
     st.info("Configura Supabase en los secretos de la aplicación para iniciar sesión.")
@@ -70,7 +70,7 @@ with capture:
     if photo:
         try:
             image, jpeg = clean_image(photo.getvalue())
-            st.image(image, width="stretch")
+            show_leaf(jpeg)
         except Exception:
             st.error("No se puede procesar la imagen. Usa una foto válida de hasta 8 MB y 20 megapíxeles.")
             st.stop()
@@ -103,31 +103,47 @@ with capture:
                 st.error("No se completó el análisis o guardado. Verifica la conexión, el modelo y la configuración de Supabase.")
 with history:
     try:
-        # RLS filters farmers; admins can see all. Pagination avoids silently truncated exports.
-        page = st.number_input("Página (100 registros)", min_value=1, value=1, step=1)
-        rows = sb.table("observations").select("*").order("created_at", desc=True).range((page-1)*100,page*100-1).execute().data
-        if rows:
-            visible=pd.DataFrame(rows)
-            visible['Fecha']=pd.to_datetime(visible['created_at'],utc=True).dt.tz_convert('America/Puerto_Rico').dt.strftime('%d/%m/%Y %H:%M')
-            visible['Orientación']=visible['label'].map(LABELS)
-            visible['Puntuación']=visible['confidence'].map(lambda x:f'{x:.1%}')
-            visible['Estado']=visible['abstained'].map({True:'Necesita revisión',False:'Orientación disponible'})
-            visible['Observaciones']=visible['notes']
-            st.caption('Fechas en hora de Puerto Rico. Los resultados son orientativos.')
-            st.dataframe(visible[['Fecha','Orientación','Puntuación','Estado','Observaciones']],hide_index=True)
-        else:
+        # RLS enforces ownership; fetch one extra row to detect the next page.
+        size = 20
+        page = st.session_state.get("history_page", 1)
+        records = sb.table("observations").select("*").order("created_at", desc=True).range((page-1)*size, page*size).execute().data
+        rows = records[:size]
+        previous, position, following = st.columns([1,2,1])
+        if previous.button("Anterior", disabled=page<=1):
+            st.session_state.history_page = page-1
+            st.rerun()
+        position.caption(f"Página {page} · hasta {size} observaciones")
+        if following.button("Siguiente", disabled=len(records)<=size):
+            st.session_state.history_page = page+1
+            st.rerun()
+        if not rows:
             st.info('Todavía no hay fotos en tu historial. Analiza una hoja para guardar tu primera observación.')
-        if rows:
+        else:
+            st.caption('Fechas en hora de Puerto Rico. Los resultados son orientativos.')
+            for record in rows:
+                date = pd.to_datetime(record['created_at'],utc=True).tz_convert('America/Puerto_Rico').strftime('%d/%m/%Y %H:%M')
+                with st.container(border=True):
+                    st.markdown(f"**{LABELS.get(record['label'],record['label'])}**")
+                    st.caption(date)
+                    st.write(f"Puntuación del modelo: {record['confidence']:.1%}")
+                    st.write('Necesita revisión' if record['abstained'] else 'Orientación disponible')
+                    if record.get('notes'): st.write(record['notes'])
+                    if st.button('Abrir observación',key='open_'+record['id']):
+                        st.session_state.selected_observation = record['id']
+                        st.rerun()
             frame = pd.DataFrame(rows).drop(columns=["probabilities", "photo_path"], errors="ignore")
             # Prevent spreadsheet formula execution in exported free text.
             frame = frame.map(lambda x: "'"+x if isinstance(x,str) and x[:1] in ("=","+","-","@","\t","\r") else x)
             st.download_button("Reporte CSV de esta página", frame.to_csv(index=False).encode("utf-8-sig"), "coffee-report.csv", "text/csv")
-            record_labels={r['id']:f"{pd.to_datetime(r['created_at']).strftime('%d/%m/%Y')} · {LABELS.get(r['label'],r['label'])} · {r['id'][:6]}" for r in rows}
-            selected = st.selectbox("Consultar observación", [r["id"] for r in rows],format_func=lambda value:record_labels[value])
-            row = next(r for r in rows if r["id"] == selected)
+            selected = st.session_state.get('selected_observation')
+            if selected not in {r['id'] for r in rows}: selected = rows[0]['id']
+            row = next(r for r in rows if r['id']==selected)
+            st.subheader('Detalle de la observación')
+            detail_date = pd.to_datetime(row['created_at'],utc=True).tz_convert('America/Puerto_Rico').strftime('%d/%m/%Y %H:%M')
+            st.caption(f"{detail_date} · {LABELS.get(row['label'],row['label'])} · Folio {selected[:6]}")
             if st.button("Ver foto privada"):
                 photo_bytes = sb.storage.from_("coffee-photos").download(row["photo_path"])
-                st.image(photo_bytes)
+                show_leaf(photo_bytes)
             reviews = sb.table("reviews").select("*").eq("observation_id",selected).order("created_at").execute().data
             st.subheader('Revisión agrícola')
             if not reviews: st.caption('Esta observación todavía no tiene una revisión administrativa.')
@@ -138,8 +154,8 @@ with history:
                     st.write(review['comment'])
             if admin:
                 with st.form("review"):
-                    verdict = st.selectbox("Revisión", ["confirmed", "corrected", "uncertain"],format_func=lambda value:{'confirmed':'Confirmar orientación','corrected':'Corregir orientación','uncertain':'Pedir más información'}[value])
-                    corrected = st.selectbox("Orientación corregida (solo si corriges)", CLASSES,format_func=lambda value:LABELS[value])
+                    verdict = st.radio("Revisión", ["confirmed", "corrected", "uncertain"],format_func=lambda value:{'confirmed':'Confirmar orientación','corrected':'Corregir orientación','uncertain':'Pedir más información'}[value])
+                    corrected = st.radio("Orientación corregida (solo si corriges)", CLASSES,format_func=lambda value:LABELS[value])
                     comment = st.text_area("Comentario de revisión", max_chars=2000)
                     if st.form_submit_button("Guardar revisión"):
                         if not comment.strip():
@@ -153,4 +169,4 @@ with history:
 with roadmap:
     st.write("Provisionales: análisis de suelo y nutrición, fertilización, poda, renovación y cosecha selectiva.")
     st.write("Estos módulos aún no emiten recomendaciones. Requerirán datos adicionales, unidades verificadas y validación agronómica local.")
-st.caption("Datos base: Jepkoech et al. (2021), JMuBEN/JMuBEN2, CC BY 4.0; distribución Project-AgML. Adaptación: nombres normalizados, auditoría y entrenamiento propios cuando se ejecuten.")
+st.caption("Datos base: Jepkoech et al. (2021), JMuBEN/JMuBEN2, CC BY 4.0; distribución Project-AgML. Adaptación: nombres normalizados, auditoría y entrenamiento propios de CoffeeCare AI.")

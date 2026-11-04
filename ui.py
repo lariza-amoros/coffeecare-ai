@@ -58,3 +58,10 @@ def photo_steps():
     <li><strong>2. Toma una foto clara</strong><span>Luz natural, buen enfoque y sin cubrir la hoja.</span></li>
     <li><strong>3. Revisa la orientación</strong><span>Consulta el resultado y pide ayuda agrícola si hay dudas.</span></li>
     </ol>''',unsafe_allow_html=True)
+
+
+def show_leaf(jpeg):
+    """Render validated JPEG bytes without a lazy image component or a public URL."""
+    import base64
+    encoded = base64.b64encode(jpeg).decode('ascii')
+    st.markdown(f'<img src="data:image/jpeg;base64,{encoded}" alt="Foto de hoja de café de esta observación" style="display:block;max-width:100%;height:auto;border-radius:12px" />',unsafe_allow_html=True)
