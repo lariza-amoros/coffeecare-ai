@@ -6,7 +6,7 @@ import streamlit as st
 from supabase import create_client
 from core import CLASSES, clean_image
 from inference import load_model, predict
-from ui import page_header, photo_steps, LABELS, show_leaf
+from ui import page_header, photo_steps, LABELS, show_leaf, model_scope, result_summary
 
 st.set_page_config(page_title="CoffeeCare AI", page_icon="🌿", layout="centered")
 page_header()
@@ -65,12 +65,13 @@ def model_resource(path, mtime):
 
 capture, history, roadmap = st.tabs(["Analizar foto", "Historial y revisión", "Próximos módulos"])
 with capture:
+    model_scope()
     photo_steps()
     st.subheader("Revisa una hoja de tu cafetal")
     st.caption("Puedes subir una foto o usar la cámara. Si es posible, fotografía también el envés.")
     mode = st.radio("Origen", ["Subir foto", "Cámara"], horizontal=True)
     photo = st.file_uploader("Foto", type=["jpg", "jpeg", "png", "webp"]) if mode == "Subir foto" else st.camera_input("Tomar foto")
-    notes = st.text_area("Observaciones del agricultor", max_chars=2000)
+    notes = st.text_area("Observaciones del agricultor", max_chars=2000, placeholder="Ejemplo: manchas desde hace tres días, en varias hojas del mismo árbol.", help="Describe lo que observas. Evita incluir datos personales.")
     consent = st.checkbox("Autorizo almacenar esta foto para mi historial y revisión administrativa. No autoriza reutilizarla para entrenar.")
     if photo:
         try:
@@ -97,16 +98,13 @@ with capture:
                 except Exception:
                     sb.storage.from_("coffee-photos").remove([object_path])
                     raise
-                if result["abstained"]:
-                    st.warning("Resultado no concluyente. Solicita revisión y toma otra foto.")
-                else:
-                    st.success(f"Orientación: {LABELS[result['label']]}")
-                st.write(f"Puntuación del modelo: {result['confidence']:.1%}. No equivale a probabilidad de diagnóstico correcto.")
-                st.json(result["probabilities"])
+                result_summary(result)
                 st.info("Registra la ubicación y evolución de los síntomas y consulta con un agrónomo. No apliques fertilizantes o plaguicidas basándote solo en esta foto.")
             except Exception:
                 st.error("No se completó el análisis o guardado. Verifica la conexión, el modelo y la configuración de Supabase.")
 with history:
+    st.subheader("Tu historial" if not admin else "Observaciones y revisiones")
+    st.caption("Abre una observación para ver su foto y los comentarios de revisión.")
     try:
         # RLS enforces ownership; fetch one extra row to detect the next page.
         size = 20

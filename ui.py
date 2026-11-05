@@ -65,3 +65,25 @@ def show_leaf(jpeg):
     import base64
     encoded = base64.b64encode(jpeg).decode('ascii')
     st.markdown(f'<img src="data:image/jpeg;base64,{encoded}" alt="Foto de hoja de café de esta observación" style="display:block;max-width:100%;height:auto;border-radius:12px" />',unsafe_allow_html=True)
+
+
+def model_scope():
+    st.markdown("### Qué puedes revisar hoy")
+    st.caption("Hojas de café · modelo actual de tres clases")
+    st.markdown("**Disponible:** roya, mancha de Cercospora y sin síntomas de esas clases.")
+    st.caption("Próxima ampliación: Phoma y minador. Los frutos todavía no se analizan.")
+
+
+def result_summary(result):
+    with st.container(border=True):
+        st.subheader("Resultado de tu hoja")
+        if result["abstained"]:
+            st.warning("No concluyente · toma otra foto y solicita revisión agrícola.")
+        else:
+            st.markdown("### " + LABELS[result["label"]])
+        st.caption("Observación guardada. Puedes abrirla en Historial y revisión.")
+        st.write(f"Puntuación del modelo: {result['confidence']:.1%}")
+        st.caption("Esta puntuación no es una garantía de diagnóstico correcto.")
+        for label, score in result["probabilities"].items():
+            st.write(f"{LABELS.get(label,label)}: {score:.1%}")
+        st.markdown("**Siguiente paso:** observa la evolución y consulta con un agrónomo si los síntomas persisten o avanzan.")
