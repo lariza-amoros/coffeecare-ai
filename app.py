@@ -6,6 +6,7 @@ import streamlit as st
 from supabase import create_client
 from core import CLASSES, clean_image
 from inference import load_model, predict
+from admin_panel import admin_records, review_status, STATUS
 from ui import page_header, photo_steps, LABELS, show_leaf, model_scope, result_summary
 
 st.set_page_config(page_title="CoffeeCare AI", page_icon="🌿", layout="centered")
@@ -105,11 +106,19 @@ with capture:
 with history:
     st.subheader("Tu historial" if not admin else "Observaciones y revisiones")
     st.caption("Abre una observación para ver su foto y los comentarios de revisión.")
+    if st.session_state.pop("review_saved",False): st.success("Revisión guardada. La predicción original se conserva.")
     try:
-        # RLS enforces ownership; fetch one extra row to detect the next page.
         size = 20
-        page = st.session_state.get("history_page", 1)
-        records = sb.table("observations").select("*").order("created_at", desc=True).range((page-1)*size, page*size).execute().data
+        if admin:
+            admin_rows, valid = admin_records(sb,LABELS)
+            if not valid: admin_rows=[]
+            max_page=max(1,(len(admin_rows)+size-1)//size)
+            st.session_state.history_page=min(st.session_state.get("history_page",1),max_page)
+            page=st.session_state.history_page
+            records=admin_rows[(page-1)*size:page*size+1]
+        else:
+            page = st.session_state.get("history_page", 1)
+            records = sb.table("observations").select("*").order("created_at", desc=True).range((page-1)*size, page*size).execute().data
         rows = records[:size]
         previous, position, following = st.columns([1,2,1])
         if previous.button("Anterior", disabled=page<=1):
@@ -120,7 +129,7 @@ with history:
             st.session_state.history_page = page+1
             st.rerun()
         if not rows:
-            st.info('Todavía no hay fotos en tu historial. Analiza una hoja para guardar tu primera observación.')
+            st.info('No hay observaciones que coincidan con estos filtros.' if admin else 'Todavía no hay fotos en tu historial. Analiza una hoja para guardar tu primera observación.')
         else:
             st.caption('Fechas en hora de Puerto Rico. Los resultados son orientativos.')
             for record in rows:
@@ -128,6 +137,9 @@ with history:
                 with st.container(border=True):
                     st.markdown(f"**{LABELS.get(record['label'],record['label'])}**")
                     st.caption(date)
+                    if admin:
+                        st.caption(f"Agricultor: {record['user_id']} · Folio: {record['id']}")
+                        st.write('Estado: ' + STATUS[review_status(record)])
                     st.write(f"Puntuación del modelo: {record['confidence']:.1%}")
                     st.write('Necesita revisión' if record['abstained'] else 'Orientación disponible')
                     if record.get('notes'): st.write(record['notes'])
@@ -166,7 +178,8 @@ with history:
                         else:
                             sb.table("reviews").insert({"observation_id":selected,"reviewer_id":user.id,
                                 "verdict":verdict,"corrected_label":corrected if verdict=="corrected" else None,"comment":comment}).execute()
-                            st.success("Revisión guardada. La predicción original se conserva.")
+                            st.session_state.review_saved = True
+                            st.rerun()
     except Exception:
         st.error("No se pudo cargar o actualizar el historial. Revisa tu sesión y los permisos del proyecto.")
 with roadmap:
