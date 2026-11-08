@@ -62,6 +62,12 @@ El A obtuvo **174/199 (87,44 %)** de exactitud y **79,32 %** de F1 macro en la p
 
 El dominio de café y la presencia de roya, broca y minador motivan el uso como prototipo para Puerto Rico. La procedencia de las imágenes y sus condiciones de captura limitan la transferencia. Todavía falta un conjunto externo etiquetado de fincas puertorriqueñas. El modelo puede asignar confianza alta a condiciones fuera de las ocho clases o a infecciones mixtas. Para explorar generalización, captura fotos nuevas con permiso de uso y registra dispositivo, luz, encuadre, clase revisada y si el modelo se abstuvo. Mantén cada finca o sesión fuera de entrenamiento si sus fotos se usarán para evaluar.
 
+### Comprobación local y sensibilidad a la captura
+
+En una prueba en memoria, la API con el modelo real devolvió broca con 97,40 % y resultado incierto con 47,87 % en dos fotos auditadas. Rechazó la imagen dañada con HTTP 422. En Streamlit, con una sesión Farmer simulada, el archivo dañado mostró un error, conservó el acceso al historial y no generó un guardado.
+
+Al oscurecer artificialmente la foto de broca a 45 % del brillo original, el modelo se abstuvo con una confianza de 53,25 %. Al aplicar desenfoque gaussiano de radio 4 a la foto inicialmente incierta, el modelo aceptó la clase hoja sana con 87,44 %. Se probó también compresión JPEG a calidad 20 y ambas fotos mantuvieron su resultado original. Son dos ejemplos de sensibilidad a la calidad de imagen. La generalización a celulares y fincas de Puerto Rico requiere fotos nuevas con etiquetas verificadas.
+
 ## Comprobaciones en producción
 
 | Caso | Evidencia que se debe guardar |
