@@ -1,0 +1,1 @@
+"""Shared CoffeeCare application code."""

@@ -1,6 +1,6 @@
 """Shared, lightweight farmer-facing presentation. Static HTML only."""
 import streamlit as st
-from core import UNCERTAIN
+from .core import UNCERTAIN
 
 LABELS = {
     'Healthy': 'Hoja sin síntomas visibles de las clases evaluadas',
@@ -22,9 +22,9 @@ CONDITION_INFO = {
 
 def page_header(demo=False):
     st.markdown('''<style>
-    .stApp {background:#f6f8f3;color:#183329;}
+    .stApp {background:#f7f4ea;color:#183329;}
     .block-container {max-width:1040px;padding-top:2rem;padding-bottom:3rem;}
-    h1,h2,h3 {color:#153e2b;letter-spacing:-.025em;}
+    h1,h2,h3 {color:#214e38;letter-spacing:-.025em;}
     p,li,label {font-size:1rem;line-height:1.6;}
     a {color:#175b3a;text-decoration:underline;text-underline-offset:3px;}
     button:focus-visible,input:focus-visible,textarea:focus-visible,[role="tab"]:focus-visible {
@@ -39,16 +39,17 @@ def page_header(demo=False):
     .cc-hero-copy {flex:1;min-width:0;}
     .cc-hero h2 {font-size:clamp(1.6rem,4vw,2.2rem);line-height:1.15;margin:8px 0 12px;}
     .cc-hero p {color:#294a39;margin:0;max-width:540px;}
-    .cc-tag {font-size:.8rem;font-weight:750;letter-spacing:.09em;text-transform:uppercase;}
+    .cc-tag {color:#795548;font-size:.8rem;font-weight:750;letter-spacing:.09em;text-transform:uppercase;}
     .cc-art {width:170px;flex-shrink:0;}
     .cc-steps {display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin:12px 0 24px;padding:0;list-style:none;}
     .cc-steps li {background:white;border:1px solid #d7e1d1;border-radius:16px;padding:16px;}
     .cc-steps strong {display:block;color:#194b32;margin-bottom:5px;}
     .cc-steps span {display:block;color:#42594a;font-size:.94rem;}
     @media(max-width:600px) {
-      .block-container {padding:1rem 1rem 2rem;}
+      .block-container {padding:3.5rem 1rem 2rem;}
       .cc-hero {padding:20px;gap:8px;}.cc-art {width:90px;}
       .cc-steps {grid-template-columns:1fr;gap:8px;}.cc-steps li {padding:12px 16px;}
+      [data-testid="stFileUploaderDropzoneInstructions"] small {white-space:normal;}
     }
     @media(prefers-reduced-motion:reduce) {*{scroll-behavior:auto!important;}}
     </style>''',unsafe_allow_html=True)
@@ -71,8 +72,8 @@ def page_header(demo=False):
 
 def photo_steps():
     st.markdown('''<ol class="cc-steps" aria-label="Cómo analizar una foto de café">
-    <li><strong>1. Escoge una hoja o un fruto</strong><span>Incluye la zona con síntomas o daño.</span></li>
-    <li><strong>2. Toma una foto clara</strong><span>Usa luz natural y enfoca la zona que quieres revisar.</span></li>
+    <li><strong>1. Encuadra una hoja o un fruto</strong><span>Acerca la cámara hasta que ocupe la mayor parte de la foto. Incluye la zona con síntomas.</span></li>
+    <li><strong>2. Usa luz natural y enfoca</strong><span>Evita el contraluz y los reflejos. Para una segunda foto de una hoja, prueba con el envés.</span></li>
     <li><strong>3. Revisa la orientación</strong><span>Consulta el resultado y pide ayuda agrícola si hay dudas.</span></li>
     </ol>''',unsafe_allow_html=True)
 
@@ -90,7 +91,7 @@ def model_scope():
     st.markdown("**Frutos:** sin daño visible, posible daño por broca y daño visible.")
 
 
-def result_summary(result):
+def result_summary(result, folio):
     with st.container(border=True):
         st.subheader("Resultado de tu foto")
         if result["abstained"]:
@@ -98,7 +99,7 @@ def result_summary(result):
             st.write("La foto quedó pendiente de revisión. Puedes tomar otra con mejor luz y enfoque.")
         else:
             st.markdown("### " + LABELS[result["label"]])
+            st.write("**Siguiente paso**")
             st.write(CONDITION_INFO[result["label"]])
-        st.caption("Observación guardada. Puedes abrirla en Historial y revisión.")
-        st.write(f"Puntuación del modelo: {result['confidence']:.1%}")
-        st.caption("Esta puntuación no es una garantía de diagnóstico correcto.")
+        st.write(f"**Confianza del modelo** · {result['confidence']:.1%}")
+        st.caption(f"Folio {folio} · Consulta la observación en Historial y revisión.")
