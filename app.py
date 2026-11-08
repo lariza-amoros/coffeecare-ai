@@ -4,14 +4,14 @@ from pathlib import Path
 import pandas as pd
 import streamlit as st
 from supabase import create_client
-from core import CLASSES, clean_image
+from core import CLASSES, clean_image, observation_label
 from inference import load_model, predict
 from admin_panel import admin_records, review_status, STATUS
 from ui import page_header, photo_steps, LABELS, show_leaf, model_scope, result_summary
 
 st.set_page_config(page_title="CoffeeCare AI", page_icon="🌿", layout="centered")
 page_header()
-st.warning("Prototipo experimental: distingue roya, Cercospora y hojas sin síntomas de esas clases. Una foto no confirma el diagnóstico y el modelo puede equivocarse incluso con puntuación alta. Otras enfermedades requieren revisión.")
+st.warning("Prototipo de orientación para hojas y frutos de café. El modelo puede equivocarse incluso con confianza alta. Consulta al personal agrícola antes de tomar decisiones.")
 
 if "SUPABASE_URL" not in st.secrets or "SUPABASE_KEY" not in st.secrets:
     st.info("Configura Supabase en los secretos de la aplicación para iniciar sesión.")
@@ -68,8 +68,8 @@ capture, history, roadmap = st.tabs(["Analizar foto", "Historial y revisión", "
 with capture:
     model_scope()
     photo_steps()
-    st.subheader("Revisa una hoja de tu cafetal")
-    st.caption("Puedes subir una foto o usar la cámara. Si es posible, fotografía también el envés.")
+    st.subheader("Revisa una hoja o un fruto de tu cafetal")
+    st.caption("Puedes subir una foto o usar la cámara. Para hojas, también puedes fotografiar el envés.")
     mode = st.radio("Origen", ["Subir foto", "Cámara"], horizontal=True)
     photo = st.file_uploader("Foto", type=["jpg", "jpeg", "png", "webp"]) if mode == "Subir foto" else st.camera_input("Tomar foto")
     notes = st.text_area("Observaciones del agricultor", max_chars=2000, placeholder="Ejemplo: manchas desde hace tres días, en varias hojas del mismo árbol.", help="Describe lo que observas. Evita incluir datos personales.")
@@ -81,14 +81,12 @@ with capture:
         except Exception:
             st.error("No se puede procesar la imagen. Usa una foto válida de hasta 8 MB y 20 megapíxeles.")
             st.stop()
-        path = Path(st.secrets.get("MODEL_PATH", "model/model.pt"))
+        path = Path(__file__).with_name("model_a_calibrated.pt")
         if not path.exists():
             st.info("Modelo entrenado pendiente. La aplicación no genera predicciones simuladas.")
         elif st.button("Analizar y guardar", disabled=not consent,type="primary",use_container_width=True):
             try:
                 model, meta = model_resource(str(path), path.stat().st_mtime_ns)
-                if meta.get("experimental", True):
-                    st.warning("Modelo experimental: independencia de las hojas no verificada. Resultado solo para investigación y revisión.")
                 result = predict(model, meta, image)
                 key = str(uuid.uuid4())
                 object_path = f"{user.id}/{key}.jpg"
@@ -135,18 +133,21 @@ with history:
             for record in rows:
                 date = pd.to_datetime(record['created_at'],utc=True).tz_convert('America/Puerto_Rico').strftime('%d/%m/%Y %H:%M')
                 with st.container(border=True):
-                    st.markdown(f"**{LABELS.get(record['label'],record['label'])}**")
+                    label = observation_label(record)
+                    st.markdown(f"**{LABELS.get(label,label)}**")
                     st.caption(date)
                     if admin:
                         st.caption(f"Agricultor: {record['user_id']} · Folio: {record['id']}")
                         st.write('Estado: ' + STATUS[review_status(record)])
                     st.write(f"Puntuación del modelo: {record['confidence']:.1%}")
-                    st.write('Necesita revisión' if record['abstained'] else 'Orientación disponible')
+                    if not record['abstained']:
+                        st.write('Orientación disponible')
                     if record.get('notes'): st.write(record['notes'])
                     if st.button('Abrir observación',key='open_'+record['id']):
                         st.session_state.selected_observation = record['id']
                         st.rerun()
             frame = pd.DataFrame(rows).drop(columns=["probabilities", "photo_path"], errors="ignore")
+            frame["label"] = [observation_label(record) for record in rows]
             # Prevent spreadsheet formula execution in exported free text.
             frame = frame.map(lambda x: "'"+x if isinstance(x,str) and x[:1] in ("=","+","-","@","\t","\r") else x)
             st.download_button("Reporte CSV de esta página", frame.to_csv(index=False).encode("utf-8-sig"), "coffee-report.csv", "text/csv")
@@ -155,26 +156,36 @@ with history:
             row = next(r for r in rows if r['id']==selected)
             st.subheader('Detalle de la observación')
             detail_date = pd.to_datetime(row['created_at'],utc=True).tz_convert('America/Puerto_Rico').strftime('%d/%m/%Y %H:%M')
-            st.caption(f"{detail_date} · {LABELS.get(row['label'],row['label'])} · Folio {selected[:6]}")
+            label = observation_label(row)
+            st.caption(f"{detail_date} · {LABELS.get(label,label)} · Folio {selected[:6]}")
             if st.button("Ver foto privada"):
                 photo_bytes = sb.storage.from_("coffee-photos").download(row["photo_path"])
                 show_leaf(photo_bytes)
             reviews = sb.table("reviews").select("*").eq("observation_id",selected).order("created_at").execute().data
             st.subheader('Revisión agrícola')
-            if not reviews: st.caption('Esta observación todavía no tiene una revisión administrativa.')
+            if not reviews:
+                st.caption('Pendiente de revisión' if row['abstained'] else 'Todavía no hay una revisión.')
             for review in reviews:
                 with st.container(border=True):
-                    st.write({'confirmed':'Orientación confirmada','corrected':'Orientación corregida','uncertain':'Se necesita más información'}[review['verdict']])
+                    verdict_labels = {'confirmed':'Orientación confirmada',
+                                      'corrected':'Resultado de la revisión' if row['abstained'] else 'Orientación corregida',
+                                      'uncertain':'Se necesita más información'}
+                    st.write(verdict_labels[review['verdict']])
                     if review.get('corrected_label'): st.write(LABELS.get(review['corrected_label'],review['corrected_label']))
                     st.write(review['comment'])
             if admin:
                 with st.form("review"):
-                    verdict = st.radio("Revisión", ["confirmed", "corrected", "uncertain"],format_func=lambda value:{'confirmed':'Confirmar orientación','corrected':'Corregir orientación','uncertain':'Pedir más información'}[value])
-                    corrected = st.radio("Orientación corregida (solo si corriges)", CLASSES,format_func=lambda value:LABELS[value])
+                    choices = ["corrected", "uncertain"] if row["abstained"] else ["confirmed", "corrected", "uncertain"]
+                    verdict = st.radio("Revisión", choices, index=choices.index("uncertain") if row["abstained"] else 0,
+                                       format_func=lambda value:{'confirmed':'Confirmar orientación','corrected':'Registrar una clasificación','uncertain':'Pedir más información'}[value])
+                    corrected = st.selectbox("Clase de la revisión (si registras una clasificación)",
+                                             CLASSES, index=None, format_func=lambda value:LABELS[value])
                     comment = st.text_area("Comentario de revisión", max_chars=2000)
                     if st.form_submit_button("Guardar revisión"):
                         if not comment.strip():
                             st.error("Añade un comentario.")
+                        elif verdict == "corrected" and corrected is None:
+                            st.error("Elige una clase para guardar la clasificación.")
                         else:
                             sb.table("reviews").insert({"observation_id":selected,"reviewer_id":user.id,
                                 "verdict":verdict,"corrected_label":corrected if verdict=="corrected" else None,"comment":comment}).execute()

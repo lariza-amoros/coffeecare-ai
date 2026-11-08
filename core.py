@@ -2,7 +2,14 @@
 import io
 from PIL import Image, ImageOps
 
-CLASSES = ["Healthy", "Rust", "Cercospora"]
+CLASSES = ["Healthy", "Rust", "Cercospora", "Phoma", "Miner",
+           "Fruit_Healthy", "Fruit_Borer", "Fruit_Damaged"]
+UNCERTAIN = "Uncertain"
+
+
+def observation_label(record):
+    """Hide the unaccepted class in older saved observations, too."""
+    return UNCERTAIN if record["abstained"] else record["label"]
 SOURCE_LABELS = {"Healthy": "Healthy", "Leaf_rust": "Rust", "Rust": "Rust",
                  "Cerscospora": "Cercospora", "Cercospora": "Cercospora",
                  "Phoma": "Phoma", "Miner": "Miner"}

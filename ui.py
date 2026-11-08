@@ -1,7 +1,24 @@
 """Shared, lightweight farmer-facing presentation. Static HTML only."""
 import streamlit as st
+from core import UNCERTAIN
 
-LABELS={'Healthy':'Sin síntomas de las clases entrenadas','Rust':'Roya','Cercospora':'Mancha de Cercospora'}
+LABELS = {
+    'Healthy': 'Hoja sin síntomas visibles de las clases evaluadas',
+    'Rust': 'Roya', 'Cercospora': 'Mancha de Cercospora', 'Phoma': 'Mancha por Phoma',
+    'Miner': 'Daño por minador', 'Fruit_Healthy': 'Fruto sin daño visible',
+    'Fruit_Borer': 'Posible daño por broca', 'Fruit_Damaged': 'Fruto con daño visible',
+    UNCERTAIN: 'Resultado incierto',
+}
+CONDITION_INFO = {
+    'Healthy': 'Observa otras hojas si la planta presenta cambios.',
+    'Rust': 'Fotografía el envés de la hoja si observas manchas o polvillo anaranjado.',
+    'Cercospora': 'Toma una segunda foto de las manchas con buena luz para facilitar la revisión.',
+    'Phoma': 'Registra si las manchas avanzan y si aparecen en otras hojas.',
+    'Miner': 'Fotografía de cerca las zonas dañadas para facilitar la revisión.',
+    'Fruit_Healthy': 'Observa otros frutos del mismo racimo si tienes dudas.',
+    'Fruit_Borer': 'Fotografía de cerca cualquier orificio visible en el fruto.',
+    'Fruit_Damaged': 'Fotografía el daño desde otro ángulo para facilitar la revisión.',
+}
 
 def page_header(demo=False):
     st.markdown('''<style>
@@ -40,7 +57,7 @@ def page_header(demo=False):
     st.markdown(f'''<section class="cc-hero" aria-label="Bienvenida a CoffeeCare">
     <div class="cc-hero-copy"><div class="cc-tag">{tag}</div>
     <h2>Cuida tu cafetal,<br>hoja por hoja.</h2>
-    <p>Toma una foto clara y recibe una orientación sobre roya y Cercospora. Conserva tus observaciones y pide una revisión cuando la necesites.</p></div>
+    <p>Toma una foto clara de una hoja o un fruto de café. Recibe una orientación y guarda tus observaciones para revisión.</p></div>
     <svg class="cc-art" viewBox="0 0 180 180" aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg">
     <circle cx="92" cy="89" r="77" fill="#d3e3c9"/>
     <path d="M72 156 Q82 103 125 31" fill="none" stroke="#806243" stroke-width="7" stroke-linecap="round"/>
@@ -53,9 +70,9 @@ def page_header(demo=False):
     </svg></section>''',unsafe_allow_html=True)
 
 def photo_steps():
-    st.markdown('''<ol class="cc-steps" aria-label="Cómo analizar una hoja">
-    <li><strong>1. Escoge una hoja</strong><span>Una sola hoja de café. Incluye la zona con síntomas.</span></li>
-    <li><strong>2. Toma una foto clara</strong><span>Luz natural, buen enfoque y sin cubrir la hoja.</span></li>
+    st.markdown('''<ol class="cc-steps" aria-label="Cómo analizar una foto de café">
+    <li><strong>1. Escoge una hoja o un fruto</strong><span>Incluye la zona con síntomas o daño.</span></li>
+    <li><strong>2. Toma una foto clara</strong><span>Usa luz natural y enfoca la zona que quieres revisar.</span></li>
     <li><strong>3. Revisa la orientación</strong><span>Consulta el resultado y pide ayuda agrícola si hay dudas.</span></li>
     </ol>''',unsafe_allow_html=True)
 
@@ -64,26 +81,24 @@ def show_leaf(jpeg):
     """Render validated JPEG bytes without a lazy image component or a public URL."""
     import base64
     encoded = base64.b64encode(jpeg).decode('ascii')
-    st.markdown(f'<img src="data:image/jpeg;base64,{encoded}" alt="Foto de hoja de café de esta observación" style="display:block;max-width:100%;height:auto;border-radius:12px" />',unsafe_allow_html=True)
+    st.markdown(f'<img src="data:image/jpeg;base64,{encoded}" alt="Foto de café de esta observación" style="display:block;max-width:100%;height:auto;border-radius:12px" />',unsafe_allow_html=True)
 
 
 def model_scope():
     st.markdown("### Qué puedes revisar hoy")
-    st.caption("Hojas de café · modelo actual de tres clases")
-    st.markdown("**Disponible:** roya, mancha de Cercospora y sin síntomas de esas clases.")
-    st.caption("Próxima ampliación: Phoma y minador. Los frutos todavía no se analizan.")
+    st.markdown("**Hojas:** sin síntomas visibles, roya, Cercospora, Phoma y daño por minador.")
+    st.markdown("**Frutos:** sin daño visible, posible daño por broca y daño visible.")
 
 
 def result_summary(result):
     with st.container(border=True):
-        st.subheader("Resultado de tu hoja")
+        st.subheader("Resultado de tu foto")
         if result["abstained"]:
-            st.warning("No concluyente · toma otra foto y solicita revisión agrícola.")
+            st.warning("Resultado incierto")
+            st.write("La foto quedó pendiente de revisión. Puedes tomar otra con mejor luz y enfoque.")
         else:
             st.markdown("### " + LABELS[result["label"]])
+            st.write(CONDITION_INFO[result["label"]])
         st.caption("Observación guardada. Puedes abrirla en Historial y revisión.")
         st.write(f"Puntuación del modelo: {result['confidence']:.1%}")
         st.caption("Esta puntuación no es una garantía de diagnóstico correcto.")
-        for label, score in result["probabilities"].items():
-            st.write(f"{LABELS.get(label,label)}: {score:.1%}")
-        st.markdown("**Siguiente paso:** observa la evolución y consulta con un agrónomo si los síntomas persisten o avanzan.")

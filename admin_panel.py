@@ -5,6 +5,7 @@ from collections import Counter
 from datetime import date, datetime, time, timedelta, timezone
 from zoneinfo import ZoneInfo
 import streamlit as st
+from core import UNCERTAIN, observation_label
 
 STATUS = {"pending":"Sin revisar", "confirmed":"Confirmada", "corrected":"Corregida", "uncertain":"Más información"}
 
@@ -23,7 +24,7 @@ def csv_report(rows):
     for row in rows:
         # Keep every review, including the original chronology; one row if unreviewed.
         for r in sorted(row.get("reviews") or [{}],key=lambda r:(r.get("created_at",""),r.get("id",0))):
-            values = dict(zip(fields,[row["id"],row["user_id"],row["created_at"],row["label"],row["confidence"],row["model_version"],row.get("notes",""),r.get("id",""),r.get("reviewer_id",""),r.get("created_at",""),r.get("verdict","pending"),r.get("corrected_label") or "",r.get("comment","")]))
+            values = dict(zip(fields,[row["id"],row["user_id"],row["created_at"],observation_label(row),row["confidence"],row["model_version"],row.get("notes",""),r.get("id",""),r.get("reviewer_id",""),r.get("created_at",""),r.get("verdict","pending"),r.get("corrected_label") or "",r.get("comment","")]))
             writer.writerow({k:("'"+v if isinstance(v,str) and v.lstrip()[:1] in ("=","+","-","@") else v) for k,v in values.items()})
     return out.getvalue().encode("utf-8-sig")
 
@@ -32,7 +33,7 @@ def admin_records(sb, labels):
     with st.form("admin_filters"):
         search = st.text_input("Buscar por folio, ID del agricultor o notas",max_chars=200)
         condition = st.radio("Condición",["all",*labels],format_func=lambda v:"Todas" if v=="all" else labels[v],horizontal=True)
-        state = st.radio("Bandeja",["all","pending","reviewed","uncertain"],format_func=lambda v:{"all":"Todas","pending":"Sin revisar","reviewed":"Con revisión","uncertain":"Más información"}[v],horizontal=True)
+        state = st.radio("Bandeja",["all","pending","pending_uncertain","reviewed","uncertain"],format_func=lambda v:{"all":"Todas","pending":"Sin revisar","pending_uncertain":"Inciertos pendientes","reviewed":"Con revisión","uncertain":"Más información"}[v],horizontal=True)
         start = st.text_input("Desde (AAAA-MM-DD)",placeholder="2026-11-01")
         end = st.text_input("Hasta (AAAA-MM-DD)",placeholder="2026-11-30")
         st.caption("Fechas inclusivas en hora de Puerto Rico. Déjalas vacías para todo el periodo.")
@@ -53,7 +54,8 @@ def admin_records(sb, labels):
     # Bounded prototype workload. Never label a truncated count as a global total.
     for offset in range(0,5001,500):
         query=sb.table("observations").select("*,reviews(id,reviewer_id,created_at,verdict,corrected_label,comment)").order("created_at",desc=True).order("id")
-        if condition!="all": query=query.eq("label",condition)
+        if condition==UNCERTAIN or state=="pending_uncertain": query=query.eq("abstained",True)
+        if condition not in ("all",UNCERTAIN): query=query.eq("label",condition).eq("abstained",False)
         if begin: query=query.gte("created_at",datetime.combine(begin,time.min,ZoneInfo("America/Puerto_Rico")).astimezone(timezone.utc).isoformat())
         if finish: query=query.lt("created_at",datetime.combine(finish+timedelta(days=1),time.min,ZoneInfo("America/Puerto_Rico")).astimezone(timezone.utc).isoformat())
         batch=query.range(offset,min(offset+499,5000)).execute().data
@@ -68,9 +70,10 @@ def admin_records(sb, labels):
     st.markdown("#### Resumen del periodo, condición y búsqueda")
     a,b,c=st.columns(3)
     a.metric("Observaciones",len(records)); b.metric("Sin revisar",pending); c.metric("Con revisión",len(records)-pending)
-    counts=Counter(r["label"] for r in records)
+    counts=Counter(observation_label(r) for r in records)
     st.caption(" · ".join(f"{labels.get(k,k)}: {v}" for k,v in sorted(counts.items())) or "Sin observaciones")
     if state=="pending": records=[r for r in records if review_status(r)=="pending"]
+    elif state=="pending_uncertain": records=[r for r in records if r["abstained"] and review_status(r)=="pending"]
     elif state=="reviewed": records=[r for r in records if review_status(r)!="pending"]
     elif state=="uncertain": records=[r for r in records if review_status(r)=="uncertain"]
     st.caption(f"Bandeja: {len(records)} observaciones. El estado se toma de la revisión más reciente.")
