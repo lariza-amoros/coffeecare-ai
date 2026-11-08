@@ -1,0 +1,19 @@
+services:
+  - type: web
+    name: coffeecare-api
+    runtime: python
+    plan: free
+    buildCommand: python -m pip install -r requirements-api.txt
+    startCommand: python -m uvicorn api:app --host 0.0.0.0 --port "$PORT" --limit-concurrency 8
+    healthCheckPath: /health
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.12.10"
+      - key: OMP_NUM_THREADS
+        value: "1"
+      - key: MKL_NUM_THREADS
+        value: "1"
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_KEY
+        sync: false

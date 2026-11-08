@@ -8,7 +8,7 @@ Prototipo académico para orientar a agricultores sobre el estado de hojas y fru
 - **Admin autorizado:** abre la bandeja **Inciertos pendientes**, consulta la foto privada y registra una clasificación revisada o pide más información.
 - **Resultado incierto:** si la confianza queda por debajo del 61,03%, la app guarda el caso sin mostrar una clase y lo deja pendiente de revisión.
 
-Streamlit valida la imagen y ejecuta el modelo PyTorch en el servidor. Supabase Auth valida la sesión. PostgreSQL guarda las observaciones y revisiones, y Storage guarda las fotos en un depósito privado. Las políticas de acceso limitan cada Farmer a sus registros y permiten la revisión al rol Admin. La interfaz de inferencia actual es la función Python `predict` llamada por Streamlit.
+Streamlit valida la imagen y usa la API HTTP para inferencia cuando está configurada. La API verifica la sesión con Supabase Auth y ejecuta el modelo PyTorch. PostgreSQL guarda las observaciones y revisiones, y Storage guarda las fotos en un depósito privado. Las políticas de acceso limitan cada Farmer a sus registros y permiten la revisión al rol Admin.
 
 ## Ejecutar localmente
 
@@ -17,6 +17,25 @@ Streamlit valida la imagen y ejecuta el modelo PyTorch en el servidor. Supabase 
 3. Configura un proyecto Supabase con las tablas `observations` y `reviews`, el depósito privado `coffee-photos`, las políticas de acceso y las restricciones de las ocho clases más el estado `Uncertain`. Usa el proyecto de CoffeeCare si ya tienes acceso.
 4. Crea `.streamlit/secrets.toml` con `SUPABASE_URL` y `SUPABASE_KEY` del proyecto. Usa la clave publicable o anon. Mantén el archivo de secretos fuera de Git.
 5. Ejecuta `python -m streamlit run app.py`. La app carga `model_a_calibrated.pt`, incluido en el repositorio.
+
+## API HTTP
+
+Instala `requirements-api.txt` y configura `SUPABASE_URL` y `SUPABASE_KEY` como variables de entorno del servidor de la API. Ejecuta `python -m uvicorn api:app --host 127.0.0.1 --port 8000`. La documentación OpenAPI queda disponible en `/docs` y `GET /health` devuelve el estado y la versión del modelo.
+
+`POST /predict` recibe los bytes de una foto JPEG, PNG o WebP de hasta 8 MB con el token de sesión en el encabezado `Authorization`. El servicio devuelve la clase, confianza, probabilidades, estado de abstención y versión del modelo. Para un caso incierto devuelve `label: "Uncertain"` y probabilidades vacías. El servicio de predicción procesa la imagen en memoria. Streamlit guarda las observaciones según el consentimiento.
+
+```bash
+curl --fail-with-body http://127.0.0.1:8000/predict \
+  -H "Authorization: Bearer ${COFFEECARE_ACCESS_TOKEN}" \
+  -H "Content-Type: image/jpeg" \
+  --data-binary @foto.jpg
+```
+
+Añade `PREDICTION_API_URL = "http://127.0.0.1:8000"` a los secretos locales de Streamlit. Para producción usa la URL HTTPS del servicio. Si omites ese secreto, Streamlit ejecuta el modelo localmente.
+
+Ejecuta `python -m unittest discover -s tests -v` desde la carpeta de la app para comprobar el contrato HTTP con Auth simulado. Si tienes el ZIP auditado de CoffeeCare, configura `COFFEECARE_VALIDATION_ZIP` con su ruta para incluir las dos pruebas de inferencia con fotos reales.
+
+El archivo `render.yaml` configura un servicio web gratuito de Render. Proporciona la URL y la clave publicable del mismo proyecto Supabase al crear el servicio. Después de comprobar `/health`, configura la URL HTTPS de Render en los secretos de Streamlit. El servicio gratuito puede tardar en despertar tras un periodo sin uso.
 
 ## Modelo y evaluación
 

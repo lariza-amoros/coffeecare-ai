@@ -16,9 +16,10 @@ SOURCE_LABELS = {"Healthy": "Healthy", "Leaf_rust": "Rust", "Rust": "Rust",
 MEAN = [0.485, 0.456, 0.406]
 STD = [0.229, 0.224, 0.225]
 Image.MAX_IMAGE_PIXELS = 20_000_000
+MAX_UPLOAD_BYTES = 8 * 1024 * 1024
 
 def clean_image(raw):
-    if len(raw) > 8 * 1024 * 1024:
+    if len(raw) > MAX_UPLOAD_BYTES:
         raise ValueError("La foto supera 8 MB.")
     with Image.open(io.BytesIO(raw)) as im:
         if im.format not in {"JPEG", "PNG", "WEBP"}:

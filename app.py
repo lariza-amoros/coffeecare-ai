@@ -1,6 +1,8 @@
 import io
 import uuid
 from pathlib import Path
+from urllib.parse import urlsplit
+import httpx
 import pandas as pd
 import streamlit as st
 from supabase import create_client
@@ -64,6 +66,24 @@ if st.button("Cerrar sesión"):
 def model_resource(path, mtime):
     return load_model(path)
 
+
+def predict_remotely(api_url, token, raw):
+    endpoint = urlsplit(api_url)
+    loopback = endpoint.hostname in {"localhost", "127.0.0.1", "::1"}
+    if (not endpoint.hostname or endpoint.username or endpoint.password
+            or endpoint.query or endpoint.fragment
+            or (endpoint.scheme != "https" and not (loopback and endpoint.scheme == "http"))):
+        raise ValueError("Configura una URL HTTPS para el servicio de predicción.")
+    response = httpx.post(
+        api_url.rstrip("/") + "/predict", content=raw,
+        headers={"Authorization": f"Bearer {token}", "Content-Type": "application/octet-stream"},
+        timeout=httpx.Timeout(90.0, connect=5.0, write=20.0, pool=5.0),
+        follow_redirects=False,
+    )
+    response.raise_for_status()
+    return response.json()
+
+
 capture, history, roadmap = st.tabs(["Analizar foto", "Historial y revisión", "Próximos módulos"])
 with capture:
     model_scope()
@@ -76,18 +96,24 @@ with capture:
     consent = st.checkbox("Autorizo almacenar esta foto para mi historial y revisión administrativa. No autoriza reutilizarla para entrenar.")
     if photo:
         try:
-            image, jpeg = clean_image(photo.getvalue())
+            raw = photo.getvalue()
+            image, jpeg = clean_image(raw)
             show_leaf(jpeg)
         except Exception:
             st.error("No se puede procesar la imagen. Usa una foto válida de hasta 8 MB y 20 megapíxeles.")
             st.stop()
         path = Path(__file__).with_name("model_a_calibrated.pt")
-        if not path.exists():
+        api_url = st.secrets.get("PREDICTION_API_URL", "").strip()
+        if not api_url and not path.exists():
             st.info("Modelo entrenado pendiente. La aplicación no genera predicciones simuladas.")
         elif st.button("Analizar y guardar", disabled=not consent,type="primary",use_container_width=True):
             try:
-                model, meta = model_resource(str(path), path.stat().st_mtime_ns)
-                result = predict(model, meta, image)
+                if api_url:
+                    with st.spinner("Analizando la foto. El primer análisis puede tardar un poco."):
+                        result = predict_remotely(api_url, session.access_token, raw)
+                else:
+                    model, meta = model_resource(str(path), path.stat().st_mtime_ns)
+                    result = predict(model, meta, image)
                 key = str(uuid.uuid4())
                 object_path = f"{user.id}/{key}.jpg"
                 sb.storage.from_("coffee-photos").upload(object_path, jpeg, {"content-type": "image/jpeg", "upsert": "false"})
