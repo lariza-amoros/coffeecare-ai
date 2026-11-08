@@ -14,9 +14,21 @@ Streamlit valida la imagen y usa la API HTTP para inferencia cuando está config
 
 1. Clona este repositorio y entra en su carpeta. Usa Python 3.12 y un entorno virtual.
 2. Instala las dependencias con `python -m pip install -r requirements.txt`.
-3. Configura un proyecto Supabase con las tablas `observations` y `reviews`, el depósito privado `coffee-photos`, las políticas de acceso y las restricciones de las ocho clases más el estado `Uncertain`. Usa el proyecto de CoffeeCare si ya tienes acceso.
+3. Usa el proyecto CoffeeCare existente si ya tienes acceso. Para un proyecto **nuevo**, ejecuta [el SQL inicial](supabase/bootstrap.sql) una vez en SQL Editor. En Auth, configura el Site URL para que la confirmación de correo vuelva a la app. Crea una cuenta Farmer de prueba y asigna `app_metadata.role=admin` a la cuenta autorizada mediante administración de Supabase.
 4. Crea `.streamlit/secrets.toml` con `SUPABASE_URL` y `SUPABASE_KEY` del proyecto. Usa la clave publicable o anon. Mantén el archivo de secretos fuera de Git.
-5. Ejecuta `python -m streamlit run app.py`. La app carga `model_a_calibrated.pt`, incluido en el repositorio.
+5. Ejecuta `python -m streamlit run app.py`. La app carga `model/model_a_calibrated.pt`, incluido en el repositorio.
+
+## Estructura
+
+| Ruta | Responsabilidad |
+| --- | --- |
+| `app.py` | Entrada de Streamlit y flujo Farmer–Admin |
+| `api.py` | Entrada ASGI de FastAPI, autenticación y contrato HTTP |
+| `coffeecare/` | Procesamiento de imágenes, inferencia y componentes de la interfaz |
+| `model/` | Modelo A calibrado para CPU |
+| `supabase/` | SQL inicial para instalaciones nuevas |
+| `tests/` | Pruebas del contrato HTTP y de inferencia con fotos auditadas |
+| `docs/` | Guion de demostración, evidencias y matriz de confusión |
 
 ## API HTTP
 
@@ -33,7 +45,7 @@ curl --fail-with-body http://127.0.0.1:8000/predict \
 
 Añade `PREDICTION_API_URL = "http://127.0.0.1:8000"` a los secretos locales de Streamlit. Para producción usa la URL HTTPS del servicio. Si omites ese secreto, Streamlit ejecuta el modelo localmente.
 
-Ejecuta `python -m unittest discover -s tests -v` desde la carpeta de la app para comprobar el contrato HTTP con Auth simulado. Si tienes el ZIP auditado de CoffeeCare, configura `COFFEECARE_VALIDATION_ZIP` con su ruta para incluir las dos pruebas de inferencia con fotos reales.
+Instala `requirements-api.txt` y ejecuta `python -m unittest discover -s tests -v` desde la raíz para comprobar el contrato HTTP con Auth simulado. Configura `COFFEECARE_VALIDATION_ZIP` con la ruta al ZIP auditado de CoffeeCare para ejecutar también las pruebas de inferencia con las dos fotos reales.
 
 El archivo `render.yaml` configura un servicio web gratuito de Render. Proporciona la URL y la clave publicable del mismo proyecto Supabase al crear el servicio. Después de comprobar `/health`, configura la URL HTTPS de Render en los secretos de Streamlit. El servicio gratuito puede tardar en despertar tras un periodo sin uso.
 
@@ -55,9 +67,4 @@ Se eligió A de la época 17 por su exactitud en validación. Se probaron datos 
 
 ## Demostración y comprobaciones
 
-1. Entra como Farmer desde un celular y sube una foto. Comprueba la orientación, la confianza y la entrada en el historial.
-2. Sube un caso de baja confianza. Verifica que se muestre **Resultado incierto** y se guarde como pendiente. Entra como Admin, abre la bandeja, registra una revisión y vuelve a Farmer para comprobar que aparece.
-3. Prueba un archivo de imagen inválido y comprueba que se muestre un mensaje comprensible.
-4. Presenta la arquitectura, la comparación A/B y la matriz final. Usa fotos nuevas de celular para explorar el efecto de luz y encuadre, y registra los resultados como una prueba exploratoria.
-
-Se verificaron localmente dos fotos con el modelo real (una aceptada y una incierta), la respuesta a una imagen inválida y la presentación en Streamlit. Se verificaron en Supabase la escritura del caso incierto, el aislamiento Farmer y la revisión Admin mediante una transacción de prueba. El recorrido autenticado completo en la web y la cámara de un celular quedan pendientes.
+Consulta el [guion de demostración y evidencias para la rúbrica](docs/DEMO.md). El flujo de revisión de un caso incierto ya se verificó en la versión publicada con el folio `409d68`. La validación de cámara en un celular real y las comprobaciones de esta revisión en producción se registran por separado de las pruebas locales.

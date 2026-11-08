@@ -1,10 +1,15 @@
 [server]
 address = "0.0.0.0"
+maxUploadSize = 8
+enableXsrfProtection = true
 
 [theme]
 base = "light"
-primaryColor = "#1D613F"
-backgroundColor = "#F6F8F3"
+primaryColor = "#214E38"
+backgroundColor = "#F7F4EA"
 secondaryBackgroundColor = "#EAF0E5"
 textColor = "#183329"
 font = "sans serif"
+
+[browser]
+gatherUsageStats = false

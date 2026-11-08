@@ -5,9 +5,10 @@ from collections import Counter
 from datetime import date, datetime, time, timedelta, timezone
 from zoneinfo import ZoneInfo
 import streamlit as st
-from core import UNCERTAIN, observation_label
+from .core import UNCERTAIN, observation_label
 
-STATUS = {"pending":"Sin revisar", "confirmed":"Confirmada", "corrected":"Corregida", "uncertain":"Más información"}
+STATUS = {"pending": "Pendiente de revisión", "confirmed": "Revisada · orientación confirmada",
+          "corrected": "Revisada · clasificación registrada", "uncertain": "Se necesita otra foto o más información"}
 
 def latest_review(row):
     reviews = row.get("reviews") or []

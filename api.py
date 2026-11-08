@@ -1,7 +1,6 @@
 """HTTP prediction service for CoffeeCare AI."""
 import os
 from contextlib import asynccontextmanager
-from pathlib import Path
 from typing import Annotated
 
 import httpx
@@ -11,8 +10,8 @@ from PIL import Image
 from pydantic import BaseModel
 from starlette.concurrency import run_in_threadpool
 
-from core import MAX_UPLOAD_BYTES, clean_image
-from inference import load_model, predict
+from coffeecare.core import MAX_UPLOAD_BYTES, clean_image
+from coffeecare.inference import MODEL_PATH, load_model, predict
 
 IMAGE_TYPES = ("image/jpeg", "image/png", "image/webp", "application/octet-stream")
 bearer = HTTPBearer(auto_error=False)
@@ -32,7 +31,7 @@ async def lifespan(app: FastAPI):
     key = os.environ["SUPABASE_KEY"]
     if not auth_url.startswith("https://") or not key.strip():
         raise ValueError("Configura la URL HTTPS y la clave publicable de Supabase.")
-    app.state.model = load_model(Path(__file__).with_name("model_a_calibrated.pt"))
+    app.state.model = load_model(MODEL_PATH)
     async with httpx.AsyncClient(
         base_url=auth_url, headers={"apikey": key}, timeout=5, follow_redirects=False,
     ) as auth:

@@ -1,15 +1,13 @@
-import io
 import uuid
-from pathlib import Path
 from urllib.parse import urlsplit
 import httpx
 import pandas as pd
 import streamlit as st
 from supabase import create_client
-from core import CLASSES, clean_image, observation_label
-from inference import load_model, predict
-from admin_panel import admin_records, review_status, STATUS
-from ui import page_header, photo_steps, LABELS, show_leaf, model_scope, result_summary
+from coffeecare.core import CLASSES, clean_image, observation_label
+from coffeecare.inference import MODEL_PATH, load_model, predict
+from coffeecare.admin_panel import admin_records, review_status, STATUS
+from coffeecare.ui import page_header, photo_steps, LABELS, show_leaf, model_scope, result_summary
 
 st.set_page_config(page_title="CoffeeCare AI", page_icon="🌿", layout="centered")
 page_header()
@@ -84,14 +82,19 @@ def predict_remotely(api_url, token, raw):
     return response.json()
 
 
-capture, history, roadmap = st.tabs(["Analizar foto", "Historial y revisión", "Próximos módulos"])
-with capture:
-    model_scope()
-    photo_steps()
-    st.subheader("Revisa una hoja o un fruto de tu cafetal")
-    st.caption("Puedes subir una foto o usar la cámara. Para hojas, también puedes fotografiar el envés.")
-    mode = st.radio("Origen", ["Subir foto", "Cámara"], horizontal=True)
-    photo = st.file_uploader("Foto", type=["jpg", "jpeg", "png", "webp"]) if mode == "Subir foto" else st.camera_input("Tomar foto")
+def render_capture():
+    st.subheader("Analiza una hoja o un fruto")
+    mode = st.radio("Cómo añadir una foto", ["Tomar foto", "Subir foto"], horizontal=True)
+    if mode == "Tomar foto":
+        st.caption("Permite el acceso a la cámara cuando el navegador lo solicite.")
+        photo = st.camera_input("Tomar foto")
+    else:
+        photo = st.file_uploader("Subir foto", type=["jpg", "jpeg", "png", "webp"])
+    with st.expander("Cómo tomar una foto clara y qué puedes analizar"):
+        photo_steps()
+        model_scope()
+    if photo is None:
+        return
     notes = st.text_area("Observaciones del agricultor", max_chars=2000, placeholder="Ejemplo: manchas desde hace tres días, en varias hojas del mismo árbol.", help="Describe lo que observas. Evita incluir datos personales.")
     consent = st.checkbox("Autorizo almacenar esta foto para mi historial y revisión administrativa. No autoriza reutilizarla para entrenar.")
     if photo:
@@ -101,8 +104,8 @@ with capture:
             show_leaf(jpeg)
         except Exception:
             st.error("No se puede procesar la imagen. Usa una foto válida de hasta 8 MB y 20 megapíxeles.")
-            st.stop()
-        path = Path(__file__).with_name("model_a_calibrated.pt")
+            return
+        path = MODEL_PATH
         api_url = st.secrets.get("PREDICTION_API_URL", "").strip()
         if not api_url and not path.exists():
             st.info("Modelo entrenado pendiente. La aplicación no genera predicciones simuladas.")
@@ -123,10 +126,15 @@ with capture:
                 except Exception:
                     sb.storage.from_("coffee-photos").remove([object_path])
                     raise
-                result_summary(result)
+                result_summary(result, key[:6])
                 st.info("Registra la ubicación y evolución de los síntomas y consulta con un agrónomo. No apliques fertilizantes o plaguicidas basándote solo en esta foto.")
             except Exception:
-                st.error("No se completó el análisis o guardado. Verifica la conexión, el modelo y la configuración de Supabase.")
+                st.error("No se pudo analizar o guardar la foto. Revisa tu conexión e inténtalo otra vez.")
+
+
+capture, history, roadmap = st.tabs(["Analizar foto", "Historial y revisión", "Próximos módulos"])
+with capture:
+    render_capture()
 with history:
     st.subheader("Tu historial" if not admin else "Observaciones y revisiones")
     st.caption("Abre una observación para ver su foto y los comentarios de revisión.")
@@ -142,7 +150,7 @@ with history:
             records=admin_rows[(page-1)*size:page*size+1]
         else:
             page = st.session_state.get("history_page", 1)
-            records = sb.table("observations").select("*").order("created_at", desc=True).range((page-1)*size, page*size).execute().data
+            records = sb.table("observations").select("*,reviews(id,created_at,verdict)").order("created_at", desc=True).order("id").range((page-1)*size, page*size).execute().data
         rows = records[:size]
         previous, position, following = st.columns([1,2,1])
         if previous.button("Anterior", disabled=page<=1):
@@ -164,7 +172,7 @@ with history:
                     st.caption(date)
                     if admin:
                         st.caption(f"Agricultor: {record['user_id']} · Folio: {record['id']}")
-                        st.write('Estado: ' + STATUS[review_status(record)])
+                    st.write(STATUS[review_status(record)])
                     st.write(f"Puntuación del modelo: {record['confidence']:.1%}")
                     if not record['abstained']:
                         st.write('Orientación disponible')
@@ -172,7 +180,7 @@ with history:
                     if st.button('Abrir observación',key='open_'+record['id']):
                         st.session_state.selected_observation = record['id']
                         st.rerun()
-            frame = pd.DataFrame(rows).drop(columns=["probabilities", "photo_path"], errors="ignore")
+            frame = pd.DataFrame(rows).drop(columns=["probabilities", "photo_path", "reviews"], errors="ignore")
             frame["label"] = [observation_label(record) for record in rows]
             # Prevent spreadsheet formula execution in exported free text.
             frame = frame.map(lambda x: "'"+x if isinstance(x,str) and x[:1] in ("=","+","-","@","\t","\r") else x)
