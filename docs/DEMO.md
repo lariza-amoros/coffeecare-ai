@@ -52,6 +52,8 @@ El modelo A acertó 184 de 202. Las métricas por clase se calcularon a partir d
 | Fruto dañado | 9 | 100,00 % | 88,89 % | 94,12 % |
 | Promedio macro | 202 en total | 83,91 % | 86,08 % | 84,58 % |
 
+![Comparación de exactitud y F1 macro en validación](comparacion-modelos.svg)
+
 ![Matriz de confusión del modelo A en validación interna](matriz-validacion-a.png)
 
 Dos de cuatro casos de Cercospora se predijeron como Phoma. Seis casos de Phoma se predijeron como Minador y tres de Minador como Phoma. El tamaño de las clases minoritarias limita la interpretación.
@@ -59,6 +61,23 @@ Dos de cuatro casos de Cercospora se predijeron como Phoma. Seis casos de Phoma 
 ### Prueba interna reservada y uso en Puerto Rico
 
 El A obtuvo **174/199 (87,44 %)** de exactitud y **79,32 %** de F1 macro en la prueba reservada. Con el umbral de **61,03 %**, clasificó **180/199 (90,45 % de cobertura)** y acertó **163/180 (90,56 % de exactitud selectiva)**. Acertó 1 de 4 casos de Cercospora en ese conjunto.
+
+![Matriz de confusión del modelo A en prueba reservada](matriz-prueba-a.svg)
+
+[Descargar conteos de la matriz en CSV](matriz-prueba-a.csv). La matriz usa la clase con mayor puntuación de cada foto antes de aplicar la abstención. En prueba, tres de cuatro casos de Cercospora se predijeron como Phoma. Siete de 55 casos de Phoma se predijeron como Minador.
+
+![Precisión y sensibilidad por clase en prueba reservada](rendimiento-por-clase.svg)
+
+| Clase | Fotos | Precisión | Sensibilidad | F1 |
+| --- | ---: | ---: | ---: | ---: |
+| Hoja sana | 27 | 96,30 % | 96,30 % | 96,30 % |
+| Roya | 42 | 97,44 % | 90,48 % | 93,83 % |
+| Cercospora | 4 | 12,50 % | 25,00 % | 16,67 % |
+| Phoma | 55 | 84,62 % | 80,00 % | 82,24 % |
+| Minador | 11 | 46,67 % | 63,64 % | 53,85 % |
+| Fruto sano | 13 | 100,00 % | 84,62 % | 91,67 % |
+| Broca | 38 | 100,00 % | 100,00 % | 100,00 % |
+| Fruto dañado | 9 | 100,00 % | 100,00 % | 100,00 % |
 
 El dominio de café y la presencia de roya, broca y minador motivan el uso como prototipo para Puerto Rico. La procedencia de las imágenes y sus condiciones de captura limitan la transferencia. Todavía falta un conjunto externo etiquetado de fincas puertorriqueñas. El modelo puede asignar confianza alta a condiciones fuera de las ocho clases o a infecciones mixtas. Para explorar generalización, captura fotos nuevas con permiso de uso y registra dispositivo, luz, encuadre, clase revisada y si el modelo se abstuvo. Mantén cada finca o sesión fuera de entrenamiento si sus fotos se usarán para evaluar.
 
