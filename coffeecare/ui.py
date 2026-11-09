@@ -20,7 +20,7 @@ CONDITION_INFO = {
     'Fruit_Damaged': 'Fotografía el daño desde otro ángulo para facilitar la revisión.',
 }
 
-def page_header(demo=False):
+def page_header():
     st.markdown('''<style>
     .stApp {background:#f7f4ea;color:#183329;}
     .block-container {max-width:1040px;padding-top:2rem;padding-bottom:3rem;}
@@ -54,9 +54,8 @@ def page_header(demo=False):
     @media(prefers-reduced-motion:reduce) {*{scroll-behavior:auto!important;}}
     </style>''',unsafe_allow_html=True)
     st.title('CoffeeCare AI')
-    tag='Prueba el modelo' if demo else 'Tu cafetal, a mano'
-    st.markdown(f'''<section class="cc-hero" aria-label="Bienvenida a CoffeeCare">
-    <div class="cc-hero-copy"><div class="cc-tag">{tag}</div>
+    st.markdown('''<section class="cc-hero" aria-label="Bienvenida a CoffeeCare">
+    <div class="cc-hero-copy"><div class="cc-tag">Tu cafetal, a mano</div>
     <h2>Cuida tu cafetal,<br>hoja por hoja.</h2>
     <p>Toma una foto clara de una hoja o un fruto de café. Recibe una orientación y guarda tus observaciones para revisión.</p></div>
     <svg class="cc-art" viewBox="0 0 180 180" aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg">

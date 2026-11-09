@@ -5,18 +5,14 @@ from PIL import Image, ImageOps
 CLASSES = ["Healthy", "Rust", "Cercospora", "Phoma", "Miner",
            "Fruit_Healthy", "Fruit_Borer", "Fruit_Damaged"]
 UNCERTAIN = "Uncertain"
+Image.MAX_IMAGE_PIXELS = 20_000_000
+MAX_UPLOAD_BYTES = 8 * 1024 * 1024
 
 
 def observation_label(record):
     """Hide the unaccepted class in older saved observations, too."""
     return UNCERTAIN if record["abstained"] else record["label"]
-SOURCE_LABELS = {"Healthy": "Healthy", "Leaf_rust": "Rust", "Rust": "Rust",
-                 "Cerscospora": "Cercospora", "Cercospora": "Cercospora",
-                 "Phoma": "Phoma", "Miner": "Miner"}
-MEAN = [0.485, 0.456, 0.406]
-STD = [0.229, 0.224, 0.225]
-Image.MAX_IMAGE_PIXELS = 20_000_000
-MAX_UPLOAD_BYTES = 8 * 1024 * 1024
+
 
 def clean_image(raw):
     if len(raw) > MAX_UPLOAD_BYTES:
