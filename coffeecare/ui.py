@@ -1,5 +1,11 @@
-"""Shared, lightweight farmer-facing presentation. Static HTML only."""
+"""Shared visual components for the CoffeeCare app."""
+
+import base64
+from functools import lru_cache
+from pathlib import Path
+
 import streamlit as st
+
 from .core import UNCERTAIN
 
 LABELS = {
@@ -20,54 +26,72 @@ CONDITION_INFO = {
     'Fruit_Damaged': 'Fotografía el daño desde otro ángulo para facilitar la revisión.',
 }
 
-def page_header():
-    st.markdown('''<style>
-    .stApp {background:#f7f4ea;color:#183329;}
-    .block-container {max-width:1040px;padding-top:2rem;padding-bottom:3rem;}
-    h1,h2,h3 {color:#214e38;letter-spacing:-.025em;}
-    p,li,label {font-size:1rem;line-height:1.6;}
-    a {color:#175b3a;text-decoration:underline;text-underline-offset:3px;}
+ASSETS = Path(__file__).resolve().parents[1] / "assets"
+
+
+@lru_cache(maxsize=2)
+def asset_uri(name):
+    data = base64.b64encode((ASSETS / name).read_bytes()).decode("ascii")
+    return f"data:image/jpeg;base64,{data}"
+
+
+def page_header(*, signed_in=False):
+    st.markdown("""<style>
+    .stApp {background:#fffefb;color:#342317;}
+    .block-container {max-width:1180px;padding-top:3rem;padding-bottom:3rem;}
+    h1,h2,h3 {color:#342317;letter-spacing:-.025em;}
+    a {color:#1b492e;text-underline-offset:3px;}
     button:focus-visible,input:focus-visible,textarea:focus-visible,[role="tab"]:focus-visible {
-      outline:3px solid #a15c00!important;outline-offset:3px!important;}
+      outline:3px solid #947238!important;outline-offset:3px!important;}
     [data-testid="stButton"] button,[data-testid="stFormSubmitButton"] button,
-    [data-testid="stDownloadButton"] button {min-height:48px;border-radius:12px;font-weight:650;}
-    [data-testid="stTextInput"] input {min-height:48px;font-size:1rem;}
-    [data-testid="stTabs"] [role="tab"] {min-height:48px;font-weight:650;padding:0 14px;}
-    [data-testid="stFileUploader"] {border-radius:16px;}
-    .cc-hero {display:flex;align-items:center;gap:22px;padding:24px 28px;border-radius:24px;
-      background:#e6efdf;border:1px solid #ceddc5;margin:8px 0 24px;overflow:hidden;}
-    .cc-hero-copy {flex:1;min-width:0;}
-    .cc-hero h2 {font-size:clamp(1.6rem,4vw,2.2rem);line-height:1.15;margin:8px 0 12px;}
-    .cc-hero p {color:#294a39;margin:0;max-width:540px;}
-    .cc-tag {color:#795548;font-size:.8rem;font-weight:750;letter-spacing:.09em;text-transform:uppercase;}
-    .cc-art {width:170px;flex-shrink:0;}
-    .cc-steps {display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin:12px 0 24px;padding:0;list-style:none;}
-    .cc-steps li {background:white;border:1px solid #d7e1d1;border-radius:16px;padding:16px;}
-    .cc-steps strong {display:block;color:#194b32;margin-bottom:5px;}
-    .cc-steps span {display:block;color:#42594a;font-size:.94rem;}
-    @media(max-width:600px) {
+    [data-testid="stDownloadButton"] button,[data-testid="stButtonGroup"] button {
+      min-height:46px;border-radius:10px;font-weight:650;}
+    [data-testid="stTabs"] [role="tab"] {min-height:46px;font-weight:650;}
+    [data-testid="stTabs"] [data-baseweb="tab-list"] {gap:1.2rem;}
+    [data-testid="stVerticalBlockBorderWrapper"] {border-color:#e6d9bf;}
+    .cc-brand {display:flex;align-items:center;gap:14px;border-bottom:1px solid #e6d9bf;
+      padding:.35rem 0 1rem;margin-bottom:.5rem;}
+    .cc-wordmark {font-weight:750;font-size:1.7rem;letter-spacing:-.035em;color:#342317;}
+    .cc-emblem {width:52px;height:52px;display:block;position:relative;overflow:hidden;
+      border-radius:50%;background:#fffefb;flex-shrink:0;}
+    .cc-emblem img {position:absolute;width:320%;max-width:none;left:-110%;top:-19%;}
+    .cc-login-logo {display:block;width:min(420px,100%);height:auto;margin:0 auto 1rem;}
+    .cc-photo-hero {background:#f8f3e7;border:1px solid #e6d9bf;border-radius:16px;
+      overflow:hidden;margin:0 0 .4rem;}
+    .cc-photo-hero img {display:block;width:100%;aspect-ratio:2.55;object-fit:cover;object-position:center;}
+    .cc-photo-caption {padding:.45rem .9rem;color:#654c38;font-size:.82rem;}
+    .cc-steps {display:grid;grid-template-columns:repeat(3,1fr);gap:10px;padding:0;list-style:none;}
+    .cc-steps li {background:#f8f3e7;border:1px solid #e6d9bf;border-radius:12px;padding:12px;}
+    .cc-steps strong {display:block;color:#1b492e;margin-bottom:4px;}
+    .cc-steps span {font-size:.94rem;}
+    @media(max-width:640px) {
       .block-container {padding:3.5rem 1rem 2rem;}
-      .cc-hero {padding:20px;gap:8px;}.cc-art {width:90px;}
-      .cc-steps {grid-template-columns:1fr;gap:8px;}.cc-steps li {padding:12px 16px;}
-      [data-testid="stFileUploaderDropzoneInstructions"] small {white-space:normal;}
+      .cc-brand {padding-bottom:.6rem;}
+      .cc-emblem {width:44px;height:44px;}
+      .cc-photo-hero img {aspect-ratio:1.8;}
+      .cc-steps {grid-template-columns:1fr;}
+      [data-testid="stTabs"] [data-baseweb="tab-list"] {gap:.65rem;}
     }
     @media(prefers-reduced-motion:reduce) {*{scroll-behavior:auto!important;}}
-    </style>''',unsafe_allow_html=True)
-    st.title('CoffeeCare AI')
-    st.markdown('''<section class="cc-hero" aria-label="Bienvenida a CoffeeCare">
-    <div class="cc-hero-copy"><div class="cc-tag">Tu cafetal, a mano</div>
-    <h2>Cuida tu cafetal,<br>hoja por hoja.</h2>
-    <p>Toma una foto clara de una hoja o un fruto de café. Recibe una orientación y guarda tus observaciones para revisión.</p></div>
-    <svg class="cc-art" viewBox="0 0 180 180" aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg">
-    <circle cx="92" cy="89" r="77" fill="#d3e3c9"/>
-    <path d="M72 156 Q82 103 125 31" fill="none" stroke="#806243" stroke-width="7" stroke-linecap="round"/>
-    <path d="M90 113 C38 115 30 77 30 62 C69 63 91 79 90 113Z" fill="#346c43"/>
-    <path d="M104 86 C142 96 164 74 168 54 C135 44 109 57 104 86Z" fill="#4b8051"/>
-    <path d="M116 60 C82 55 77 27 81 10 C111 14 125 31 116 60Z" fill="#3b7248"/>
-    <path d="M44 73 L86 108 M117 81 L154 61" stroke="#b5cf94" stroke-width="2" fill="none"/>
-    <circle cx="89" cy="133" r="12" fill="#ad4231"/><circle cx="109" cy="120" r="12" fill="#c4533d"/>
-    <circle cx="87" cy="129" r="3" fill="#efba9d"/><circle cx="107" cy="116" r="3" fill="#efba9d"/>
-    </svg></section>''',unsafe_allow_html=True)
+    </style>""", unsafe_allow_html=True)
+    logo = asset_uri("coffeecare-logo.jpg")
+    if signed_in:
+        st.markdown(
+            f'<div class="cc-brand"><span class="cc-emblem"><img src="{logo}" alt=""></span>'
+            '<span class="cc-wordmark">CoffeeCare</span></div>', unsafe_allow_html=True,
+        )
+    else:
+        st.markdown(f'<img class="cc-login-logo" src="{logo}" alt="CoffeeCare">', unsafe_allow_html=True)
+
+
+def capture_photo_example():
+    photo = asset_uri("coffee-leaf-and-cherries.jpg")
+    st.markdown(
+        f'<figure class="cc-photo-hero"><img src="{photo}" alt="Hoja y cerezas en una misma rama de café">'
+        '<figcaption class="cc-photo-caption">Imagen ilustrativa · Hoja y frutos del café</figcaption></figure>',
+        unsafe_allow_html=True,
+    )
+
 
 def photo_steps():
     st.markdown('''<ol class="cc-steps" aria-label="Cómo analizar una foto de café">
@@ -79,7 +103,6 @@ def photo_steps():
 
 def show_leaf(jpeg):
     """Render validated JPEG bytes without a lazy image component or a public URL."""
-    import base64
     encoded = base64.b64encode(jpeg).decode('ascii')
     st.markdown(f'<img src="data:image/jpeg;base64,{encoded}" alt="Foto de café de esta observación" style="display:block;max-width:100%;height:auto;border-radius:12px" />',unsafe_allow_html=True)
 

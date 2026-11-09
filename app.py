@@ -6,17 +6,16 @@ import pandas as pd
 import streamlit as st
 from supabase import create_client
 
-from coffeecare.admin_panel import STATUS, admin_records, review_status
+from coffeecare.admin_panel import STATUS, admin_records, csv_report, review_status
 from coffeecare.auth_ui import render_sign_in
 from coffeecare.core import CLASSES, clean_image, observation_label
 from coffeecare.inference import MODEL_PATH, load_model, predict
-from coffeecare.ui import LABELS, model_scope, page_header, photo_steps, result_summary, show_leaf
+from coffeecare.ui import LABELS, capture_photo_example, model_scope, page_header, photo_steps, result_summary, show_leaf
 
-st.set_page_config(page_title="CoffeeCare AI", page_icon="🌿", layout="centered")
-page_header()
-st.warning("Prototipo de orientación para hojas y frutos de café. El modelo puede equivocarse incluso con confianza alta. Consulta al personal agrícola antes de tomar decisiones.")
+st.set_page_config(page_title="CoffeeCare AI", page_icon="🌿", layout="wide")
 
 if "SUPABASE_URL" not in st.secrets or "SUPABASE_KEY" not in st.secrets:
+    page_header()
     st.info("Configura Supabase en los secretos de la aplicación para iniciar sesión.")
     st.stop()
 # Never cache a mutable authenticated client across users.
@@ -25,7 +24,10 @@ if "sb" not in st.session_state:
 sb = st.session_state.sb
 
 if not sb.auth.get_session():
-    render_sign_in(sb)
+    page_header()
+    _, login_area, _ = st.columns([1, 3, 1])
+    with login_area:
+        render_sign_in(sb)
     st.stop()
 try:
     user = sb.auth.get_user().user  # validate with Auth; never trust a UI role selection
@@ -39,8 +41,10 @@ except Exception:
     st.error("La sesión expiró. Vuelve a cargar la página e ingresa.")
     st.stop()
 admin = user.app_metadata.get("role") == "admin"
-st.caption("Panel de administración" if admin else "Mi cafetal · Agricultor")
-if st.button("Cerrar sesión"):
+page_header(signed_in=True)
+title, account = st.columns([5, 2], vertical_alignment="center")
+title.title("Panel de administración" if admin else "Mi cafetal")
+if account.button("Cerrar sesión"):
     sb.auth.sign_out()
     st.session_state.clear()
     st.rerun()
@@ -68,12 +72,16 @@ def predict_remotely(api_url, token, raw):
 
 
 def render_capture():
-    st.subheader("Analiza una hoja o un fruto")
-    mode = st.radio("Cómo añadir una foto", ["Tomar foto", "Subir foto"], horizontal=True)
+    st.subheader("Analizar una foto")
+    capture_photo_example()
+    mode = st.segmented_control(
+        "Cómo añadir una foto", ["Tomar foto", "Subir foto"], width="stretch", label_visibility="collapsed",
+    )
+    photo = None
     if mode == "Tomar foto":
         st.caption("Permite el acceso a la cámara cuando el navegador lo solicite.")
         photo = st.camera_input("Tomar foto")
-    else:
+    elif mode == "Subir foto":
         photo = st.file_uploader("Subir foto", type=["jpg", "jpeg", "png", "webp"])
     with st.expander("Cómo tomar una foto clara y qué puedes analizar"):
         photo_steps()
@@ -117,102 +125,194 @@ def render_capture():
                 st.error("No se pudo analizar o guardar la foto. Revisa tu conexión e inténtalo otra vez.")
 
 
-capture, history, roadmap = st.tabs(["Analizar foto", "Historial y revisión", "Próximos módulos"])
-with capture:
-    render_capture()
-with history:
-    st.subheader("Tu historial" if not admin else "Observaciones y revisiones")
-    st.caption("Abre una observación para ver su foto y los comentarios de revisión.")
-    if st.session_state.pop("review_saved",False): st.success("Revisión guardada. La predicción original se conserva.")
+def display_date(value):
+    return pd.to_datetime(value, utc=True).tz_convert("America/Puerto_Rico").strftime("%d/%m/%Y %H:%M")
+
+
+def condition_name(record):
+    label = observation_label(record)
+    return LABELS.get(label, label)
+
+
+def paginate(page, size, records):
+    previous, position, following = st.columns([1, 2, 1])
+    if previous.button("Anterior", disabled=page <= 1):
+        st.session_state.history_page = page - 1
+        st.rerun()
+    position.caption(f"Página {page} · hasta {size} observaciones")
+    if following.button("Siguiente", disabled=len(records) <= size):
+        st.session_state.history_page = page + 1
+        st.rerun()
+    return records[:size]
+
+
+def render_observation(row, reviews):
+    folio = row["id"]
+    st.subheader("Detalle de la observación")
+    st.caption(f"Folio {folio[:6]} · {display_date(row['created_at'])} · Puerto Rico")
+    st.markdown(f"**{condition_name(row)}**")
+    st.write(f"Confianza del modelo · {row['confidence']:.1%}")
+    if st.toggle("Ver foto privada", key=f"photo_{folio}"):
+        try:
+            show_leaf(sb.storage.from_("coffee-photos").download(row["photo_path"]))
+        except Exception:
+            st.error("No se pudo cargar la foto privada.")
+    if admin:
+        with st.container(border=True):
+            st.markdown("**Datos del caso**")
+            st.write(f"Versión del modelo · {row.get('model_version') or 'No disponible'}")
+            st.write("Almacenamiento · Foto privada")
+            st.caption("La app solicita consentimiento antes de guardar fotos. El registro no incluye un comprobante separado.")
+    if row.get("notes"):
+        st.text(row["notes"])
+    st.subheader("Revisión agrícola")
+    if not reviews:
+        if row["abstained"]:
+            st.warning("Pendiente de revisión")
+        else:
+            st.caption("Todavía no hay una revisión.")
+    verdict_labels = {
+        "confirmed": "Orientación confirmada",
+        "corrected": "Resultado de la revisión" if row["abstained"] else "Orientación corregida",
+        "uncertain": "Se necesita más información",
+    }
+    for review in reviews:
+        with st.container(border=True):
+            st.write(verdict_labels[review["verdict"]])
+            st.caption(display_date(review["created_at"]))
+            if review.get("corrected_label"):
+                st.write(LABELS.get(review["corrected_label"], review["corrected_label"]))
+            st.text(review["comment"])
+    if admin:
+        render_review_form(row)
+
+
+def render_review_form(row):
+    options = {"confirmed": "Confirmar orientación", "corrected": "Registrar una clasificación",
+               "uncertain": "Pedir más información"}
+    choices = ["uncertain", "corrected"] if row["abstained"] else list(options)
+    with st.form(f"review_{row['id']}"):
+        st.markdown("**Registrar revisión**")
+        verdict = st.radio("Revisión", choices, format_func=options.__getitem__)
+        corrected = st.selectbox("Clase de la revisión", CLASSES, index=None, format_func=LABELS.__getitem__)
+        comment = st.text_area("Comentario de revisión", max_chars=2000)
+        if not st.form_submit_button("Guardar revisión", type="primary"):
+            return
+        if not comment.strip():
+            st.error("Añade un comentario.")
+            return
+        if verdict == "corrected" and corrected is None:
+            st.error("Elige una clase para guardar la clasificación.")
+            return
+        sb.table("reviews").insert({
+            "observation_id": row["id"], "reviewer_id": user.id, "verdict": verdict,
+            "corrected_label": corrected if verdict == "corrected" else None, "comment": comment,
+        }).execute()
+        st.session_state.review_saved = True
+        st.rerun()
+
+
+def render_farmer_history():
+    st.subheader("Tu historial")
+    st.caption("Abre una observación para consultar su foto y su revisión.")
+    size = 20
+    page = st.session_state.get("history_page", 1)
     try:
-        size = 20
-        if admin:
-            admin_rows, valid = admin_records(sb,LABELS)
-            if not valid: admin_rows=[]
-            max_page=max(1,(len(admin_rows)+size-1)//size)
-            st.session_state.history_page=min(st.session_state.get("history_page",1),max_page)
-            page=st.session_state.history_page
-            records=admin_rows[(page-1)*size:page*size+1]
-        else:
-            page = st.session_state.get("history_page", 1)
-            records = sb.table("observations").select("*,reviews(id,created_at,verdict)").order("created_at", desc=True).order("id").range((page-1)*size, page*size).execute().data
-        rows = records[:size]
-        previous, position, following = st.columns([1,2,1])
-        if previous.button("Anterior", disabled=page<=1):
-            st.session_state.history_page = page-1
-            st.rerun()
-        position.caption(f"Página {page} · hasta {size} observaciones")
-        if following.button("Siguiente", disabled=len(records)<=size):
-            st.session_state.history_page = page+1
-            st.rerun()
+        records = (sb.table("observations").select("*,reviews(id,created_at,verdict)")
+                   .order("created_at", desc=True).order("id").range((page - 1) * size, page * size).execute().data)
+        rows = paginate(page, size, records)
         if not rows:
-            st.info('No hay observaciones que coincidan con estos filtros.' if admin else 'Todavía no hay fotos en tu historial. Analiza una hoja para guardar tu primera observación.')
-        else:
-            st.caption('Fechas en hora de Puerto Rico. Los resultados son orientativos.')
-            for record in rows:
-                date = pd.to_datetime(record['created_at'],utc=True).tz_convert('America/Puerto_Rico').strftime('%d/%m/%Y %H:%M')
-                with st.container(border=True):
-                    label = observation_label(record)
-                    st.markdown(f"**{LABELS.get(label,label)}**")
-                    st.caption(date)
-                    if admin:
-                        st.caption(f"Agricultor: {record['user_id']} · Folio: {record['id']}")
-                    st.write(STATUS[review_status(record)])
-                    st.write(f"Puntuación del modelo: {record['confidence']:.1%}")
-                    if not record['abstained']:
-                        st.write('Orientación disponible')
-                    if record.get('notes'): st.write(record['notes'])
-                    if st.button('Abrir observación',key='open_'+record['id']):
-                        st.session_state.selected_observation = record['id']
-                        st.rerun()
-            frame = pd.DataFrame(rows).drop(columns=["probabilities", "photo_path", "reviews"], errors="ignore")
-            frame["label"] = [observation_label(record) for record in rows]
-            # Prevent spreadsheet formula execution in exported free text.
-            frame = frame.map(lambda x: "'"+x if isinstance(x,str) and x[:1] in ("=","+","-","@","\t","\r") else x)
-            st.download_button("Reporte CSV de esta página", frame.to_csv(index=False).encode("utf-8-sig"), "coffee-report.csv", "text/csv")
-            selected = st.session_state.get('selected_observation')
-            if selected not in {r['id'] for r in rows}: selected = rows[0]['id']
-            row = next(r for r in rows if r['id']==selected)
-            st.subheader('Detalle de la observación')
-            detail_date = pd.to_datetime(row['created_at'],utc=True).tz_convert('America/Puerto_Rico').strftime('%d/%m/%Y %H:%M')
-            label = observation_label(row)
-            st.caption(f"{detail_date} · {LABELS.get(label,label)} · Folio {selected[:6]}")
-            if st.button("Ver foto privada"):
-                photo_bytes = sb.storage.from_("coffee-photos").download(row["photo_path"])
-                show_leaf(photo_bytes)
-            reviews = sb.table("reviews").select("*").eq("observation_id",selected).order("created_at").execute().data
-            st.subheader('Revisión agrícola')
-            if not reviews:
-                st.caption('Pendiente de revisión' if row['abstained'] else 'Todavía no hay una revisión.')
-            for review in reviews:
-                with st.container(border=True):
-                    verdict_labels = {'confirmed':'Orientación confirmada',
-                                      'corrected':'Resultado de la revisión' if row['abstained'] else 'Orientación corregida',
-                                      'uncertain':'Se necesita más información'}
-                    st.write(verdict_labels[review['verdict']])
-                    if review.get('corrected_label'): st.write(LABELS.get(review['corrected_label'],review['corrected_label']))
-                    st.write(review['comment'])
-            if admin:
-                with st.form("review"):
-                    choices = ["corrected", "uncertain"] if row["abstained"] else ["confirmed", "corrected", "uncertain"]
-                    verdict = st.radio("Revisión", choices, index=choices.index("uncertain") if row["abstained"] else 0,
-                                       format_func=lambda value:{'confirmed':'Confirmar orientación','corrected':'Registrar una clasificación','uncertain':'Pedir más información'}[value])
-                    corrected = st.selectbox("Clase de la revisión (si registras una clasificación)",
-                                             CLASSES, index=None, format_func=lambda value:LABELS[value])
-                    comment = st.text_area("Comentario de revisión", max_chars=2000)
-                    if st.form_submit_button("Guardar revisión"):
-                        if not comment.strip():
-                            st.error("Añade un comentario.")
-                        elif verdict == "corrected" and corrected is None:
-                            st.error("Elige una clase para guardar la clasificación.")
-                        else:
-                            sb.table("reviews").insert({"observation_id":selected,"reviewer_id":user.id,
-                                "verdict":verdict,"corrected_label":corrected if verdict=="corrected" else None,"comment":comment}).execute()
-                            st.session_state.review_saved = True
-                            st.rerun()
+            st.info("Todavía no hay fotos en tu historial. Analiza una hoja o un fruto para empezar.")
+            return
+        for row in rows:
+            with st.container(border=True):
+                st.markdown(f"**{condition_name(row)}**")
+                st.caption(f"Folio {row['id'][:6]} · {display_date(row['created_at'])}")
+                state = review_status(row)
+                if (state == "pending" and row["abstained"]) or state == "uncertain":
+                    st.warning(STATUS[state])
+                else:
+                    st.write(STATUS[state])
+                if st.button("Abrir observación", key=f"open_{row['id']}"):
+                    st.session_state.selected_observation = row["id"]
+                    st.rerun()
+        frame = pd.DataFrame(rows).drop(columns=["probabilities", "photo_path", "reviews"], errors="ignore")
+        frame["label"] = [observation_label(row) for row in rows]
+        # Prevent spreadsheet formula execution in exported free text.
+        frame = frame.map(lambda x: "'" + x if isinstance(x, str) and x[:1] in ("=", "+", "-", "@", "\t", "\r") else x)
+        st.download_button("Reporte CSV de esta página", frame.to_csv(index=False).encode("utf-8-sig"),
+                           "coffee-report.csv", "text/csv")
+        selected = st.session_state.get("selected_observation")
+        row = next((row for row in rows if row["id"] == selected), rows[0])
+        reviews = sb.table("reviews").select("*").eq("observation_id", row["id"]).order("created_at").execute().data
+        render_observation(row, reviews)
     except Exception:
-        st.error("No se pudo cargar o actualizar el historial. Revisa tu sesión y los permisos del proyecto.")
-with roadmap:
-    st.write("Provisionales: análisis de suelo y nutrición, fertilización, poda, renovación y cosecha selectiva.")
-    st.write("Estos módulos aún no emiten recomendaciones. Requerirán datos adicionales, unidades verificadas y validación agronómica local.")
+        st.error("No se pudo cargar el historial. Revisa tu sesión e inténtalo otra vez.")
+
+
+def render_scientific_review():
+    st.subheader("Revisión científica")
+    st.caption("Selecciona un folio para consultar la evidencia y registrar una revisión.")
+    if st.session_state.pop("review_saved", False):
+        st.success("Revisión guardada. La predicción original se conserva.")
+    try:
+        records, valid = admin_records(sb, LABELS)
+        if not valid:
+            return []
+        size = 20
+        page = min(st.session_state.get("history_page", 1), max(1, (len(records) + size - 1) // size))
+        st.session_state.history_page = page
+        rows = paginate(page, size, records[(page - 1) * size:page * size + 1])
+        if not rows:
+            st.info("No hay observaciones para estos filtros.")
+            return records
+        queue, detail = st.columns([3, 2], gap="medium")
+        with queue:
+            st.markdown("**Observaciones**")
+            table = pd.DataFrame([
+                {"Folio": row["id"][:6], "Condición": condition_name(row),
+                 "Estado": STATUS[review_status(row)], "Fecha": display_date(row["created_at"])}
+                for row in rows
+            ])
+            event = st.dataframe(table, hide_index=True, width="stretch", on_select="rerun",
+                                 selection_mode="single-row", key="queue_" + "_".join(row["id"] for row in rows))
+        with detail:
+            indices = event.selection.rows
+            row = rows[indices[0]] if indices and indices[0] < len(rows) else rows[0]
+            render_observation(row, sorted(row.get("reviews") or [], key=lambda review: review["created_at"]))
+        return records
+    except Exception:
+        st.error("No se pudo cargar o actualizar la revisión. Revisa tu sesión y los permisos.")
+        return []
+
+
+def render_data(records):
+    st.subheader("Datos y almacenamiento")
+    st.caption("Resumen de la bandeja con los filtros de Revisión científica.")
+    observations, reviewed, versions = st.columns(3)
+    observations.metric("Observaciones", len(records))
+    reviewed.metric("Con revisión", sum(bool(row.get("reviews")) for row in records))
+    versions.metric("Versiones del modelo", len({row["model_version"] for row in records if row.get("model_version")}))
+    st.write("Supabase almacena las fotos en un depósito privado. El historial conserva la predicción original y cada revisión.")
+    st.download_button("Descargar observaciones y revisiones CSV", csv_report(records),
+                       "coffeecare-review.csv", "text/csv", disabled=not records)
+
+
+if admin:
+    review_tab, capture_tab, data_tab = st.tabs(["Revisión científica", "Analizar foto", "Datos"])
+    with review_tab:
+        filtered_records = render_scientific_review()
+    with data_tab:
+        render_data(filtered_records)
+else:
+    capture_tab, history_tab, roadmap = st.tabs(["Analizar foto", "Historial y revisión", "Próximos módulos"])
+    with history_tab:
+        render_farmer_history()
+    with roadmap:
+        st.write("Módulos provisionales: análisis de suelo y nutrición, fertilización, poda, renovación y cosecha selectiva.")
+        st.write("Estos módulos requerirán datos adicionales y validación agronómica local.")
+
+with capture_tab:
+    render_capture()
+st.caption("Las predicciones orientan la revisión agrícola. El modelo puede equivocarse incluso con confianza alta.")
 st.caption("Datos base: Jepkoech et al. (2021), JMuBEN/JMuBEN2, CC BY 4.0; distribución Project-AgML. Adaptación: nombres normalizados, auditoría y entrenamiento propios de CoffeeCare AI.")

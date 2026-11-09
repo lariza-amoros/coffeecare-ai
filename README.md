@@ -37,6 +37,7 @@ Install both dependency sets and run `python -m unittest discover -s tests -v`. 
 | --- | --- |
 | `app.py`, `api.py` | Streamlit and FastAPI entry points |
 | `coffeecare/` | Authentication UI, image validation, inference, and review workflow |
+| `assets/` | CoffeeCare brand mark and the illustrative coffee branch photograph |
 | `model/` | Calibrated PyTorch checkpoint |
 | `supabase/` | Database and private storage policies for new installations |
 | `tests/` | Authentication and API tests |

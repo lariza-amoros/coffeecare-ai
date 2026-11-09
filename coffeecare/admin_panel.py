@@ -33,10 +33,14 @@ def admin_records(sb, labels):
     st.caption("Busca agricultores por su identificador del historial; no se exponen sus credenciales.")
     with st.form("admin_filters"):
         search = st.text_input("Buscar por folio, ID del agricultor o notas",max_chars=200)
-        condition = st.radio("Condición",["all",*labels],format_func=lambda v:"Todas" if v=="all" else labels[v],horizontal=True)
-        state = st.radio("Bandeja",["all","pending","pending_uncertain","reviewed","uncertain"],format_func=lambda v:{"all":"Todas","pending":"Sin revisar","pending_uncertain":"Inciertos pendientes","reviewed":"Con revisión","uncertain":"Más información"}[v],horizontal=True)
-        start = st.text_input("Desde (AAAA-MM-DD)",placeholder="2026-11-01")
-        end = st.text_input("Hasta (AAAA-MM-DD)",placeholder="2026-11-30")
+        status_column, condition_column, start_column, end_column = st.columns(4)
+        status_labels = {"all": "Todos", "pending": "Sin revisar", "pending_uncertain": "Inciertos pendientes",
+                         "reviewed": "Con revisión", "uncertain": "Más información"}
+        state = status_column.selectbox("Estado", status_labels, format_func=status_labels.__getitem__)
+        condition = condition_column.selectbox("Condición", ["all", *labels],
+                                               format_func=lambda value: "Todas" if value == "all" else labels[value])
+        start = start_column.text_input("Desde", placeholder="AAAA-MM-DD")
+        end = end_column.text_input("Hasta", placeholder="AAAA-MM-DD")
         st.caption("Fechas inclusivas en hora de Puerto Rico. Déjalas vacías para todo el periodo.")
         st.form_submit_button("Aplicar filtros",type="primary")
     try:
@@ -78,5 +82,4 @@ def admin_records(sb, labels):
     elif state=="reviewed": records=[r for r in records if review_status(r)!="pending"]
     elif state=="uncertain": records=[r for r in records if review_status(r)=="uncertain"]
     st.caption(f"Bandeja: {len(records)} observaciones. El estado se toma de la revisión más reciente.")
-    st.download_button("Descargar observaciones y revisiones CSV",csv_report(records),"coffeecare-admin.csv","text/csv",disabled=not records)
     return records,True
