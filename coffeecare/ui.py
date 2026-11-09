@@ -113,8 +113,8 @@ def welcome_panel():
         '<section class="cc-welcome" aria-label="Bienvenida a CoffeeCare">'
         '<div class="cc-welcome-copy"><span class="cc-kicker">Tu cafetal, a mano</span>'
         '<h2>Observa tu cafetal con una foto</h2>'
-        '<p>Encuadra una hoja o un fruto de café. Recibe orientación, guarda tu observación '
-        'y consulta su revisión por folio.</p></div>'
+        '<p>Encuadra una hoja o un fruto de café para recibir orientación. '
+        'Guarda tu foto y consulta su revisión en el historial.</p></div>'
         f'<img src="{photo}" alt="Imagen ilustrativa de una hoja y cerezas en una rama de café"></section>',
         unsafe_allow_html=True,
     )
@@ -140,7 +140,7 @@ def model_scope():
     st.markdown("**Frutos:** sin daño visible, posible daño por broca y daño visible.")
 
 
-def result_summary(result, folio):
+def result_summary(result, observation_code):
     with st.container(border=True):
         st.subheader("Resultado de tu foto")
         if result["abstained"]:
@@ -151,4 +151,4 @@ def result_summary(result, folio):
             st.write("**Siguiente paso**")
             st.write(CONDITION_INFO[result["label"]])
         st.write(f"**Confianza del modelo** · {result['confidence']:.1%}")
-        st.caption(f"Folio {folio} · Consulta la observación en Historial y revisión.")
+        st.caption(f"Código de observación: {observation_code} · Consulta la foto en Historial y revisión.")
