@@ -8,7 +8,7 @@ from supabase import create_client
 
 from coffeecare.admin_panel import STATUS, admin_records, csv_report, review_status
 from coffeecare.auth_ui import render_sign_in
-from coffeecare.core import CLASSES, clean_image, observation_label
+from coffeecare.core import CLASSES, PHOTO_PARTS, UNCERTAIN, apply_review_rules, clean_image, observation_label
 from coffeecare.evaluation import render_model_evidence
 from coffeecare.inference import MODEL_PATH, load_model, predict
 from coffeecare.ui import LABELS, model_scope, page_header, photo_steps, result_summary, show_leaf, welcome_panel
@@ -75,7 +75,10 @@ def predict_remotely(api_url, token, raw):
 
 def render_capture():
     st.subheader("Analizar una foto")
-    st.write("Elige la cámara o una foto guardada de una hoja o un fruto de café.")
+    selected_part = st.radio("¿Qué quieres analizar?", PHOTO_PARTS, index=None, horizontal=True)
+    if selected_part is None:
+        st.caption("Elige una parte del café para tomar o subir una foto.")
+        return
     mode = st.segmented_control(
         "Cómo añadir una foto", ["Tomar foto", "Subir foto"], width="stretch", label_visibility="collapsed",
     )
@@ -112,6 +115,7 @@ def render_capture():
                 else:
                     model, meta = model_resource(str(path), path.stat().st_mtime_ns)
                     result = predict(model, meta, image)
+                result, review_reason = apply_review_rules(result, image, selected_part)
                 key = str(uuid.uuid4())
                 object_path = f"{user.id}/{key}.jpg"
                 sb.storage.from_("coffee-photos").upload(object_path, jpeg, {"content-type": "image/jpeg", "upsert": "false"})
@@ -121,7 +125,7 @@ def render_capture():
                 except Exception:
                     sb.storage.from_("coffee-photos").remove([object_path])
                     raise
-                result_summary(result, key[:6])
+                result_summary(result, key[:6], review_reason)
                 st.info("Registra la ubicación y evolución de los síntomas y consulta con un agrónomo. No apliques fertilizantes o plaguicidas basándote solo en esta foto.")
             except Exception:
                 st.error("No se pudo analizar o guardar la foto. Revisa tu conexión e inténtalo otra vez.")
@@ -153,7 +157,8 @@ def render_observation(row, reviews):
     st.subheader("Detalle de la observación")
     st.caption(f"Código de observación: {observation_id[:6]} · {display_date(row['created_at'])} · Puerto Rico")
     st.markdown(f"**{condition_name(row)}**")
-    st.write(f"Confianza del modelo · {row['confidence']:.1%}")
+    if not row["abstained"]:
+        st.write(f"Confianza del modelo · {row['confidence']:.1%}")
     if st.toggle("Ver foto privada", key=f"photo_{observation_id}"):
         try:
             show_leaf(sb.storage.from_("coffee-photos").download(row["photo_path"]))
@@ -163,6 +168,8 @@ def render_observation(row, reviews):
         with st.container(border=True):
             st.markdown("**Datos del caso**")
             st.write(f"Versión del modelo · {row.get('model_version') or 'No disponible'}")
+            if row["abstained"] and row["label"] != UNCERTAIN:
+                st.write(f"Predicción original, pendiente de revisión · {LABELS[row['label']]} ({row['confidence']:.1%})")
             st.write("Almacenamiento · Foto privada")
             st.caption("La app solicita consentimiento antes de guardar fotos. El registro no incluye un comprobante separado.")
     if row.get("notes"):
