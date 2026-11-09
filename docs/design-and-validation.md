@@ -5,8 +5,8 @@ CoffeeCare serves coffee growers using a phone or computer and authorized staff 
 | User story | Acceptance check |
 | --- | --- |
 | As a Farmer, I want to take or upload a coffee photo on my phone. | The capture tab offers two choices. Camera access starts when selected. A valid upload previews, and an invalid one displays a readable error. |
-| As a Farmer, I want to understand the result and retrieve it later. | A consented analysis shows the predicted condition or uncertainty, model confidence, guidance, and a folio. The same folio appears in the account's history. |
-| As an Administrator, I want to review a private observation. | An authorized account can find the folio, view the photo, inspect the original result, and record a review. Farmer can see the verdict for their observation. |
+| As a Farmer, I want to understand the result and retrieve it later. | A consented analysis shows the predicted condition or uncertainty, model confidence, guidance, and a observation code. The same observation code appears in the account's history. |
+| As an Administrator, I want to review a private observation. | An authorized account can find the observation code, view the photo, inspect the original result, and record a review. Farmer can see the verdict for their observation. |
 | As a reviewer, I want to understand the model's evidence and limits. | The evaluation tab labels the validation and test sets, compares the test to a majority-class baseline, and exposes the archived matrices and per-class metrics. |
 
 ## Architecture
@@ -51,6 +51,6 @@ Training batches sampled evenly across classes to address imbalance. The compact
 
 1. Collect consented photos from different plants and lighting conditions, using both camera capture and gallery upload. Include varied backgrounds and, separately, blurry photos and subjects outside the eight classes.
 2. Have an agricultural reviewer assign a reference class before seeing the model result. Record uncertain reference labels separately. Use one photo per plant for the primary analysis or group repeated photos by plant.
-3. For the authorized evaluation team, record a study ID, private folio, device or capture mode, lighting, leaf or fruit, reference label, predicted label, confidence, model version, and abstention. Publish only aggregate results.
+3. For the authorized evaluation team, record a study ID, private observation code, device or capture mode, lighting, leaf or fruit, reference label, predicted label, confidence, model version, and abstention. Publish only aggregate results.
 4. Use confirmed in-scope cases to report the confusion matrix, per-class precision and recall, macro F1, coverage, and accuracy among accepted predictions. Report unsupported-image outcomes separately. Count both false-positive and missed leaf-miner cases, and report the Cercospora sample size.
-5. Separately verify that a phone capture produces a saved folio and that the same case opens in Administrator review. Record device, browser, and whether the Farmer can see the saved review.
+5. Separately verify that a phone capture produces a saved observation code and that the same case opens in Administrator review. Record device, browser, and whether the Farmer can see the saved review.

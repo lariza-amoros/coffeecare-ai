@@ -4,7 +4,7 @@
 
 1. **0:00–1:00.** Explain how Farmer captures a photo, gets guidance, and receives follow-up from Administrator.
 2. **1:00–2:00.** Explain the Streamlit, FastAPI, PyTorch, and Supabase architecture. Describe authentication, private photo storage, and consent.
-3. **2:00–4:00.** Select **Farmer**, sign in, and show photo capture and upload. Analyze the berry borer example and find its observation in the history. Switch to an authorized **Administrator** account to show the review queue. Folio `409d68` is an example of a request for another photo. Use a text file renamed to `invalid.jpg` to demonstrate input validation.
+3. **2:00–4:00.** Select **Farmer**, sign in, and show photo capture and upload. Analyze the berry borer example and find its observation in the history. Switch to an authorized **Administrator** account to show the review queue. Observation code `409d68` is an example of a request for another photo. Use a text file renamed to `invalid.jpg` to demonstrate input validation.
 4. **4:00–6:00.** Open **Administrator → Evaluación del modelo**. Compare validation accuracy with held-out accuracy and show how coverage changes after abstention. Use the matrix to show the confusion between Cercospora and Phoma and between Phoma and leaf miner.
 5. **6:00–7:00.** Explain the CPU deployment, Render startup delay after idle periods, and the limitations of transferring the results to field photos.
 
@@ -15,7 +15,7 @@
 | Requirements and design | 10 | [User stories, acceptance checks, and architecture](design-and-validation.md) |
 | Frontend | 15 | Mobile photo capture, uncertainty display, observation history, and role selection |
 | Backend | 10 | Token validation, upload limits, prediction endpoint, and calibrated abstention |
-| Integration | 10 | End-to-end Farmer–Administrator review documented in folio `409d68` |
+| Integration | 10 | End-to-end Farmer–Administrator review documented in observation code `409d68` |
 | Code and documentation | 5 | Setup instructions, database bootstrap, and reproducible API and sign-in tests |
 | Dataset and preprocessing | 10 | [Sources, split counts, imbalance, and local relevance](design-and-validation.md#dataset-and-training-recipe) |
 | Model development | 15 | MobileNetV3-Small initialized from ImageNet, with the training recipe in Colab |
@@ -70,7 +70,7 @@ In an exploratory check, reducing the berry borer photo to 45% of its original b
 
 | Production check | Evidence |
 | --- | --- |
-| Phone camera and upload | Browser, device, preview, and saved folio |
+| Phone camera and upload | Browser, device, preview, and saved observation code |
 | Accepted prediction | Class, confidence, guidance, and matching observation |
 | Invalid file | Readable error and no new observation |
 | Review | Administrator can review a private observation and Farmer can read the verdict |
