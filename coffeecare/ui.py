@@ -49,24 +49,16 @@ def page_header(*, signed_in=False):
     [data-testid="stTabs"] [role="tab"] {min-height:46px;font-weight:650;}
     [data-testid="stTabs"] [data-baseweb="tab-list"] {gap:1.2rem;}
     [data-testid="stVerticalBlockBorderWrapper"] {border-color:#e6d9bf;}
-    .cc-brand {border-bottom:1px solid #e6d9bf;padding:.2rem 0 .8rem;margin-bottom:.5rem;}
-    .cc-brand--welcome {width:fit-content;max-width:100%;margin-inline:auto;}
-    .cc-brand-trigger {display:flex;align-items:center;gap:.8rem;width:fit-content;max-width:100%;
-      padding:.35rem .65rem .35rem .35rem;border-radius:14px;list-style:none;cursor:pointer;}
-    .cc-brand-trigger::-webkit-details-marker {display:none;}
-    .cc-brand-trigger:hover,.cc-brand[open] .cc-brand-trigger {background:#f8f3e7;}
-    .cc-brand-trigger:focus-visible {outline:3px solid #947238;outline-offset:3px;}
-    .cc-brand-copy {display:grid;gap:.2rem;line-height:1.2;}
-    .cc-wordmark {font-weight:750;font-size:1.6rem;letter-spacing:-.035em;color:#342317;}
-    .cc-tagline {color:#1b492e;font-size:.92rem;font-weight:650;}
-    .cc-subtitle {color:#654c38;font-size:.84rem;}
-    .cc-emblem {width:60px;height:60px;display:block;position:relative;overflow:hidden;
+    .cc-brand {display:flex;align-items:center;gap:1rem;border-bottom:1px solid #e6d9bf;
+      padding:.2rem 0 .8rem;margin-bottom:.5rem;}
+    .cc-brand-copy {display:grid;gap:.2rem;min-width:0;line-height:1.2;}
+    .cc-wordmark {font-weight:750;font-size:.9rem;color:#342317;}
+    .cc-brand .cc-tagline {color:#1b492e;font-size:clamp(1.25rem,3vw,2rem);line-height:1.15;
+      font-weight:750;margin:0;padding:0;}
+    .cc-brand .cc-subtitle {color:#654c38;font-size:.9rem;margin:0;}
+    .cc-emblem {width:68px;height:68px;display:block;position:relative;overflow:hidden;
       border:1px solid #e6d9bf;border-radius:50%;background:#fffefb;flex-shrink:0;}
     .cc-emblem img {position:absolute;width:320%;max-width:none;left:-110%;top:-19%;}
-    .cc-brand-chevron {width:.45rem;height:.45rem;border:solid #654c38;border-width:0 2px 2px 0;
-      flex-shrink:0;transform:rotate(45deg);margin:.1rem .15rem .25rem .25rem;}
-    .cc-brand[open] .cc-brand-chevron {transform:rotate(225deg);margin-block:.35rem .1rem;}
-    .cc-brand-message {max-width:36ch;margin:.45rem .35rem 0;font-size:.9rem;color:#654c38;}
     .cc-welcome {display:grid;grid-template-columns:1.1fr 1fr;align-items:center;gap:1.5rem;
       background:#f8f3e7;border:1px solid #e6d9bf;border-radius:22px;overflow:hidden;}
     .cc-welcome-copy {padding:1.55rem 0 1.55rem 1.75rem;}
@@ -80,10 +72,8 @@ def page_header(*, signed_in=False):
     .cc-steps span {font-size:.94rem;}
     @media(max-width:640px) {
       .block-container {padding:3.5rem 1rem 2rem;}
-      .cc-brand {padding-bottom:.6rem;}
-      .cc-emblem {width:48px;height:48px;}
-      .cc-brand-trigger {gap:.6rem;}
-      .cc-wordmark {font-size:1.4rem;}
+      .cc-brand {gap:.7rem;padding-bottom:.6rem;}
+      .cc-emblem {width:50px;height:50px;}
       .cc-welcome {grid-template-columns:1fr;gap:0;}
       .cc-welcome-copy {padding:1rem 1.15rem;}
       .cc-welcome img {aspect-ratio:2.7;}
@@ -93,16 +83,13 @@ def page_header(*, signed_in=False):
     @media(prefers-reduced-motion:reduce) {*{scroll-behavior:auto!important;}}
     </style>""", unsafe_allow_html=True)
     logo = asset_uri("coffeecare-logo.jpg")
-    brand_class = "cc-brand" if signed_in else "cc-brand cc-brand--welcome"
+    heading = "h2" if signed_in else "h1"
     st.markdown(
-        f'<details class="{brand_class}"><summary class="cc-brand-trigger">'
+        '<header class="cc-brand">'
         f'<span class="cc-emblem"><img src="{logo}" alt=""></span>'
-        '<span class="cc-brand-copy"><span class="cc-wordmark">CoffeeCare</span>'
-        '<span class="cc-tagline">Cada hoja y cada fruto cuentan.</span>'
-        '<span class="cc-subtitle">La salud de tu cafetal, a simple vista.</span></span>'
-        '<span class="cc-brand-chevron" aria-hidden="true"></span></summary>'
-        '<div class="cc-brand-message">Sube una foto de una hoja o un fruto de café para recibir '
-        'orientación sobre lo que observas en tu cafetal.</div></details>',
+        '<div class="cc-brand-copy"><span class="cc-wordmark">CoffeeCare</span>'
+        f'<{heading} class="cc-tagline">Cada hoja y cada fruto cuentan.</{heading}>'
+        '<p class="cc-subtitle">La salud de tu cafetal, a simple vista.</p></div></header>',
         unsafe_allow_html=True,
     )
 
