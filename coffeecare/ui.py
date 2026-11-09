@@ -129,15 +129,23 @@ def model_scope():
     st.markdown("**Frutos:** sin daño visible, posible daño por broca y daño visible.")
 
 
-def result_summary(result, observation_code):
+def result_summary(result, observation_code, review_reason=None):
     with st.container(border=True):
         st.subheader("Resultado de tu foto")
-        if result["abstained"]:
+        if review_reason == "leaf_color":
+            st.warning("Hoja con señales de daño · causa por revisar")
+            st.write("La foto quedó pendiente de revisión. Si puedes, toma otra del envés de la hoja con buena luz.")
+        elif review_reason == "part_conflict":
+            st.warning("Resultado incierto")
+            st.write("La predicción no coincide con la parte elegida. Acerca la cámara a una sola hoja o un fruto y vuelve a probar.")
+            st.caption("La foto guardada quedó pendiente de revisión.")
+        elif result["abstained"]:
             st.warning("Resultado incierto")
             st.write("La foto quedó pendiente de revisión. Puedes tomar otra con mejor luz y enfoque.")
         else:
             st.markdown("### " + LABELS[result["label"]])
             st.write("**Siguiente paso**")
             st.write(CONDITION_INFO[result["label"]])
-        st.write(f"**Confianza del modelo** · {result['confidence']:.1%}")
+        if not result["abstained"]:
+            st.write(f"**Confianza del modelo** · {result['confidence']:.1%}")
         st.caption(f"Código de observación: {observation_code} · Consulta la foto en Historial y revisión.")

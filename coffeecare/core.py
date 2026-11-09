@@ -1,5 +1,6 @@
 """Shared input contract. No credentials or network at import time."""
 import io
+import numpy as np
 from PIL import Image, ImageOps
 
 CLASSES = ["Healthy", "Rust", "Cercospora", "Phoma", "Miner",
@@ -7,6 +8,29 @@ CLASSES = ["Healthy", "Rust", "Cercospora", "Phoma", "Miner",
 UNCERTAIN = "Uncertain"
 Image.MAX_IMAGE_PIXELS = 20_000_000
 MAX_UPLOAD_BYTES = 8 * 1024 * 1024
+PHOTO_PARTS = ("Hoja", "Fruto")
+
+
+def apply_review_rules(result, image, selected_part):
+    """Abstain on a part conflict or a color cue that calls for leaf review."""
+    if selected_part not in PHOTO_PARTS:
+        raise ValueError("Selecciona Hoja o Fruto.")
+    if result["abstained"]:
+        return result, None
+
+    label = result["label"]
+    predicted_part = "Fruto" if label.startswith("Fruit_") else "Hoja"
+    if selected_part != predicted_part:
+        return dict(result, abstained=True), "part_conflict"
+
+    if label == "Miner" and result["probabilities"].get("Rust", 0) >= 0.075:
+        hsv = np.asarray(image.resize((256, 256), Image.Resampling.BILINEAR).convert("HSV"))
+        hue, saturation, value = hsv.transpose(2, 0, 1)
+        orange = (hue >= 8) & (hue <= 28) & (saturation >= 125) & (value >= 115)
+        if orange.mean() >= 0.02:
+            return dict(result, abstained=True), "leaf_color"
+
+    return result, None
 
 
 def observation_label(record):
