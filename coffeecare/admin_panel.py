@@ -32,7 +32,7 @@ def csv_report(rows):
 def admin_records(sb, labels):
     st.caption("Busca agricultores por su identificador del historial; no se exponen sus credenciales.")
     with st.form("admin_filters"):
-        search = st.text_input("Buscar por folio, ID del agricultor o notas",max_chars=200)
+        search = st.text_input("Buscar por código de observación, ID del agricultor o notas",max_chars=200)
         status_column, condition_column, start_column, end_column = st.columns(4)
         status_labels = {"all": "Todos", "pending": "Sin revisar", "pending_uncertain": "Inciertos pendientes",
                          "reviewed": "Con revisión", "uncertain": "Más información"}
