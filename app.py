@@ -9,8 +9,9 @@ from supabase import create_client
 from coffeecare.admin_panel import STATUS, admin_records, csv_report, review_status
 from coffeecare.auth_ui import render_sign_in
 from coffeecare.core import CLASSES, clean_image, observation_label
+from coffeecare.evaluation import render_model_evidence
 from coffeecare.inference import MODEL_PATH, load_model, predict
-from coffeecare.ui import LABELS, capture_photo_example, model_scope, page_header, photo_steps, result_summary, show_leaf
+from coffeecare.ui import LABELS, model_scope, page_header, photo_steps, result_summary, show_leaf, welcome_panel
 
 st.set_page_config(page_title="CoffeeCare AI", page_icon="🌿", layout="wide")
 
@@ -25,6 +26,7 @@ sb = st.session_state.sb
 
 if not sb.auth.get_session():
     page_header()
+    welcome_panel()
     _, login_area, _ = st.columns([1, 3, 1])
     with login_area:
         render_sign_in(sb)
@@ -73,7 +75,7 @@ def predict_remotely(api_url, token, raw):
 
 def render_capture():
     st.subheader("Analizar una foto")
-    capture_photo_example()
+    st.write("Elige la cámara o una foto guardada de una hoja o un fruto de café.")
     mode = st.segmented_control(
         "Cómo añadir una foto", ["Tomar foto", "Subir foto"], width="stretch", label_visibility="collapsed",
     )
@@ -299,18 +301,24 @@ def render_data(records):
 
 
 if admin:
-    review_tab, capture_tab, data_tab = st.tabs(["Revisión científica", "Analizar foto", "Datos"])
+    review_tab, capture_tab, data_tab, model_tab = st.tabs(
+        ["Revisión científica", "Analizar foto", "Datos", "Evaluación del modelo"],
+    )
     with review_tab:
         filtered_records = render_scientific_review()
     with data_tab:
         render_data(filtered_records)
+    with model_tab:
+        render_model_evidence()
 else:
-    capture_tab, history_tab, roadmap = st.tabs(["Analizar foto", "Historial y revisión", "Próximos módulos"])
+    capture_tab, history_tab, guide_tab = st.tabs(["Analizar foto", "Historial y revisión", "Guía de campo"])
     with history_tab:
         render_farmer_history()
-    with roadmap:
-        st.write("Módulos provisionales: análisis de suelo y nutrición, fertilización, poda, renovación y cosecha selectiva.")
-        st.write("Estos módulos requerirán datos adicionales y validación agronómica local.")
+    with guide_tab:
+        welcome_panel()
+        model_scope()
+        st.write("Si aparecen síntomas distintos, toma una foto separada de cada zona. Guarda el folio "
+                 "para que se pueda relacionar la foto con una revisión agrícola.")
 
 with capture_tab:
     render_capture()
