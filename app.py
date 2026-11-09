@@ -1,13 +1,16 @@
 import uuid
 from urllib.parse import urlsplit
+
 import httpx
 import pandas as pd
 import streamlit as st
 from supabase import create_client
+
+from coffeecare.admin_panel import STATUS, admin_records, review_status
+from coffeecare.auth_ui import render_sign_in
 from coffeecare.core import CLASSES, clean_image, observation_label
 from coffeecare.inference import MODEL_PATH, load_model, predict
-from coffeecare.admin_panel import admin_records, review_status, STATUS
-from coffeecare.ui import page_header, photo_steps, LABELS, show_leaf, model_scope, result_summary
+from coffeecare.ui import LABELS, model_scope, page_header, photo_steps, result_summary, show_leaf
 
 st.set_page_config(page_title="CoffeeCare AI", page_icon="🌿", layout="centered")
 page_header()
@@ -22,25 +25,7 @@ if "sb" not in st.session_state:
 sb = st.session_state.sb
 
 if not sb.auth.get_session():
-    login, signup = st.tabs(["Ingresar", "Crear cuenta Farmer"])
-    with login, st.form("login"):
-        email = st.text_input("Correo")
-        password = st.text_input("Contraseña", type="password")
-        if st.form_submit_button("Ingresar",type="primary",use_container_width=True):
-            try:
-                sb.auth.sign_in_with_password({"email": email, "password": password})
-                st.rerun()
-            except Exception:
-                st.error("No se pudo ingresar. Verifica tus datos y la confirmación del correo.")
-    with signup, st.form("signup"):
-        email_new = st.text_input("Correo nuevo")
-        pass_new = st.text_input("Contraseña nueva", type="password")
-        if st.form_submit_button("Crear cuenta",use_container_width=True):
-            try:
-                sb.auth.sign_up({"email": email_new, "password": pass_new})
-                st.success("Revisa tu correo para confirmar la cuenta antes de ingresar.")
-            except Exception:
-                st.error("No se pudo crear la cuenta. Intenta más tarde.")
+    render_sign_in(sb)
     st.stop()
 try:
     user = sb.auth.get_user().user  # validate with Auth; never trust a UI role selection
