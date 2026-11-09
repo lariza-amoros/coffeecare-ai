@@ -55,4 +55,6 @@ Model A uses MobileNetV3-Small with Focal Loss. It classifies eight leaf and fru
 
 Model A classified 174 of 199 held-out photos correctly (87.44% accuracy, 79.32% macro F1). With its calibrated threshold of 61.03%, it returned a class for 180 photos and correctly classified 163 of those (90.56% accuracy at 90.45% coverage). The small Cercospora sample and the lack of an independent labeled Puerto Rico field set limit how broadly these results apply.
 
-[Demonstration guide and evaluation figures](docs/demo.md) · [Training notebook](https://colab.research.google.com/drive/1Sz5M7k-PVridMZEGIxG9eCvAIcwcyUW6) · [Evaluation artifacts](https://drive.google.com/drive/folders/1FLFtL777bV7-6leB2OZk7sWA211-3DSU)
+In the app, open **Administrator → Evaluación del modelo** to present the matrices, metrics, and configuration comparison. Field validation with labeled Puerto Rican smartphone photos is pending.
+
+[Requirements, architecture, dataset and field validation protocol](docs/design-and-validation.md) · [Demonstration guide and evaluation figures](docs/demo.md) · [Training notebook](https://colab.research.google.com/drive/1Sz5M7k-PVridMZEGIxG9eCvAIcwcyUW6) · [Evaluation artifacts](https://drive.google.com/drive/folders/1FLFtL777bV7-6leB2OZk7sWA211-3DSU)

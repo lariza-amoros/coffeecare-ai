@@ -67,10 +67,13 @@ def page_header(*, signed_in=False):
       flex-shrink:0;transform:rotate(45deg);margin:.1rem .15rem .25rem .25rem;}
     .cc-brand[open] .cc-brand-chevron {transform:rotate(225deg);margin-block:.35rem .1rem;}
     .cc-brand-message {max-width:36ch;margin:.45rem .35rem 0;font-size:.9rem;color:#654c38;}
-    .cc-photo-hero {background:#f8f3e7;border:1px solid #e6d9bf;border-radius:16px;
-      overflow:hidden;margin:0 0 .4rem;}
-    .cc-photo-hero img {display:block;width:100%;aspect-ratio:2.55;object-fit:cover;object-position:center;}
-    .cc-photo-caption {padding:.45rem .9rem;color:#654c38;font-size:.82rem;}
+    .cc-welcome {display:grid;grid-template-columns:1.1fr 1fr;align-items:center;gap:1.5rem;
+      background:#f8f3e7;border:1px solid #e6d9bf;border-radius:22px;overflow:hidden;}
+    .cc-welcome-copy {padding:1.55rem 0 1.55rem 1.75rem;}
+    .cc-welcome h2 {font-size:clamp(1.5rem,3.5vw,2.25rem);line-height:1.15;margin:.4rem 0 .65rem;padding:0;}
+    .cc-welcome p {margin:0;color:#654c38;max-width:44ch;}
+    .cc-kicker {color:#923b2e;font-weight:700;font-size:.82rem;letter-spacing:.09em;text-transform:uppercase;}
+    .cc-welcome img {display:block;width:100%;height:100%;aspect-ratio:2.1;object-fit:cover;}
     .cc-steps {display:grid;grid-template-columns:repeat(3,1fr);gap:10px;padding:0;list-style:none;}
     .cc-steps li {background:#f8f3e7;border:1px solid #e6d9bf;border-radius:12px;padding:12px;}
     .cc-steps strong {display:block;color:#1b492e;margin-bottom:4px;}
@@ -81,7 +84,9 @@ def page_header(*, signed_in=False):
       .cc-emblem {width:48px;height:48px;}
       .cc-brand-trigger {gap:.6rem;}
       .cc-wordmark {font-size:1.4rem;}
-      .cc-photo-hero img {aspect-ratio:1.8;}
+      .cc-welcome {grid-template-columns:1fr;gap:0;}
+      .cc-welcome-copy {padding:1rem 1.15rem;}
+      .cc-welcome img {aspect-ratio:2.7;}
       .cc-steps {grid-template-columns:1fr;}
       [data-testid="stTabs"] [data-baseweb="tab-list"] {gap:.65rem;}
     }
@@ -102,11 +107,15 @@ def page_header(*, signed_in=False):
     )
 
 
-def capture_photo_example():
+def welcome_panel():
     photo = asset_uri("coffee-leaf-and-cherries.jpg")
     st.markdown(
-        f'<figure class="cc-photo-hero"><img src="{photo}" alt="Hoja y cerezas en una misma rama de café">'
-        '<figcaption class="cc-photo-caption">Imagen ilustrativa · Hoja y frutos del café</figcaption></figure>',
+        '<section class="cc-welcome" aria-label="Bienvenida a CoffeeCare">'
+        '<div class="cc-welcome-copy"><span class="cc-kicker">Tu cafetal, a mano</span>'
+        '<h2>Observa tu cafetal con una foto</h2>'
+        '<p>Encuadra una hoja o un fruto de café. Recibe orientación, guarda tu observación '
+        'y consulta su revisión por folio.</p></div>'
+        f'<img src="{photo}" alt="Imagen ilustrativa de una hoja y cerezas en una rama de café"></section>',
         unsafe_allow_html=True,
     )
 

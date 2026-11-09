@@ -5,22 +5,22 @@
 1. **0:00–1:00.** Explain how Farmer captures a photo, gets guidance, and receives follow-up from Administrator.
 2. **1:00–2:00.** Explain the Streamlit, FastAPI, PyTorch, and Supabase architecture. Describe authentication, private photo storage, and consent.
 3. **2:00–4:00.** Select **Farmer**, sign in, and show photo capture and upload. Analyze the berry borer example and find its observation in the history. Switch to an authorized **Administrator** account to show the review queue. Folio `409d68` is an example of a request for another photo. Use a text file renamed to `invalid.jpg` to demonstrate input validation.
-4. **4:00–6:00.** Explain the data splits, balanced batches, the A/B comparison, and how the model can abstain. Point out the confusion between Cercospora and Phoma and between Phoma and leaf miner.
+4. **4:00–6:00.** Open **Administrator → Evaluación del modelo**. Compare validation accuracy with held-out accuracy and show how coverage changes after abstention. Use the matrix to show the confusion between Cercospora and Phoma and between Phoma and leaf miner.
 5. **6:00–7:00.** Explain the CPU deployment, Render startup delay after idle periods, and the limitations of transferring the results to field photos.
 
 ## Rubric evidence
 
 | Area | Points | Evidence |
 | --- | ---: | --- |
-| Requirements and design | 10 | Farmer and Administrator flows, authentication, image validation, and storage |
+| Requirements and design | 10 | [User stories, acceptance checks, and architecture](design-and-validation.md) |
 | Frontend | 15 | Mobile photo capture, uncertainty display, observation history, and role selection |
 | Backend | 10 | Token validation, upload limits, prediction endpoint, and calibrated abstention |
 | Integration | 10 | End-to-end Farmer–Administrator review documented in folio `409d68` |
 | Code and documentation | 5 | Setup instructions, database bootstrap, and reproducible API and sign-in tests |
-| Dataset and preprocessing | 10 | Audited sources, grouped splits, balanced batches, and consistent RGB preprocessing |
+| Dataset and preprocessing | 10 | [Sources, split counts, imbalance, and local relevance](design-and-validation.md#dataset-and-training-recipe) |
 | Model development | 15 | MobileNetV3-Small initialized from ImageNet, with the training recipe in Colab |
 | Experiments | 10 | Reinforced control, Focal Loss in A, and a 512-unit classifier in B |
-| Evaluation | 10 | Validation comparison, per-class metrics, held-out test, and confusion matrices |
+| Evaluation | 10 | In-app evidence tab, validation comparison, per-class metrics, held-out baseline, and confusion matrices |
 | Deployment | 5 | Calibrated CPU checkpoint, FastAPI integration, and inference on held-out images |
 
 [Training notebook](https://colab.research.google.com/drive/1Sz5M7k-PVridMZEGIxG9eCvAIcwcyUW6) · [A/B comparison](https://drive.google.com/file/d/1DJiA5GNXDGugX144IsynybZ2GTYfFEuF/view) · [Held-out evaluation artifacts](https://drive.google.com/drive/folders/1FLFtL777bV7-6leB2OZk7sWA211-3DSU)
@@ -47,7 +47,7 @@ Model A correctly classified 184 of 202 validation photos. Two of four Cercospor
 
 ![Model A held-out test confusion matrix](evaluation/test-confusion-matrix.svg)
 
-The held-out matrix uses each photo's highest-scoring class before abstention. Model A correctly classified 174 of 199 photos. Three of four Cercospora cases were predicted as Phoma, and seven of 55 Phoma cases were predicted as leaf miner. [Download the test matrix counts](evaluation/test-confusion-matrix.csv)
+The held-out matrix uses each photo's highest-scoring class before abstention. Model A correctly classified 174 of 199 photos (87.44%). A majority-class baseline that always predicts Phoma would classify 55 of 199 correctly (27.64%). Three of four Cercospora cases were predicted as Phoma, and seven of 55 Phoma cases were predicted as leaf miner. [Download the test matrix counts](evaluation/test-confusion-matrix.csv)
 
 ![Model A held-out precision and recall by class](evaluation/test-per-class-performance.svg)
 
