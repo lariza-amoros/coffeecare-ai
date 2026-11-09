@@ -149,12 +149,12 @@ def paginate(page, size, records):
 
 
 def render_observation(row, reviews):
-    folio = row["id"]
+    observation_id = row["id"]
     st.subheader("Detalle de la observación")
-    st.caption(f"Folio {folio[:6]} · {display_date(row['created_at'])} · Puerto Rico")
+    st.caption(f"Código de observación: {observation_id[:6]} · {display_date(row['created_at'])} · Puerto Rico")
     st.markdown(f"**{condition_name(row)}**")
     st.write(f"Confianza del modelo · {row['confidence']:.1%}")
-    if st.toggle("Ver foto privada", key=f"photo_{folio}"):
+    if st.toggle("Ver foto privada", key=f"photo_{observation_id}"):
         try:
             show_leaf(sb.storage.from_("coffee-photos").download(row["photo_path"]))
         except Exception:
@@ -229,7 +229,7 @@ def render_farmer_history():
         for row in rows:
             with st.container(border=True):
                 st.markdown(f"**{condition_name(row)}**")
-                st.caption(f"Folio {row['id'][:6]} · {display_date(row['created_at'])}")
+                st.caption(f"Código de observación: {row['id'][:6]} · {display_date(row['created_at'])}")
                 state = review_status(row)
                 if (state == "pending" and row["abstained"]) or state == "uncertain":
                     st.warning(STATUS[state])
@@ -254,7 +254,7 @@ def render_farmer_history():
 
 def render_scientific_review():
     st.subheader("Revisión científica")
-    st.caption("Selecciona un folio para consultar la evidencia y registrar una revisión.")
+    st.caption("Selecciona una observación para ver su evidencia y registrar una revisión.")
     if st.session_state.pop("review_saved", False):
         st.success("Revisión guardada. La predicción original se conserva.")
     try:
@@ -272,7 +272,7 @@ def render_scientific_review():
         with queue:
             st.markdown("**Observaciones**")
             table = pd.DataFrame([
-                {"Folio": row["id"][:6], "Condición": condition_name(row),
+                {"Código de observación": row["id"][:6], "Condición": condition_name(row),
                  "Estado": STATUS[review_status(row)], "Fecha": display_date(row["created_at"])}
                 for row in rows
             ])
@@ -317,8 +317,8 @@ else:
     with guide_tab:
         welcome_panel()
         model_scope()
-        st.write("Si aparecen síntomas distintos, toma una foto separada de cada zona. Guarda el folio "
-                 "para que se pueda relacionar la foto con una revisión agrícola.")
+        st.write("Si aparecen síntomas distintos, toma una foto separada de cada zona. Guarda el código "
+                 "de observación para encontrar la foto cuando necesites consultar su revisión.")
 
 with capture_tab:
     render_capture()
