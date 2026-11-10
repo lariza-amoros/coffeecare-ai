@@ -170,6 +170,8 @@ def render_observation(row, reviews):
             st.write(f"Versión del modelo · {row.get('model_version') or 'No disponible'}")
             if row["abstained"] and row["label"] != UNCERTAIN:
                 st.write(f"Predicción original, pendiente de revisión · {LABELS[row['label']]} ({row['confidence']:.1%})")
+                if row["label"] == "Cercospora":
+                    st.caption("Cercospora es una posibilidad. Revisa la foto y registra una clasificación o solicita más información.")
             st.write("Almacenamiento · Foto privada")
             st.caption("La app solicita consentimiento antes de guardar fotos. El registro no incluye un comprobante separado.")
     if row.get("notes"):
