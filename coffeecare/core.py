@@ -12,7 +12,7 @@ PHOTO_PARTS = ("Hoja", "Fruto")
 
 
 def apply_review_rules(result, image, selected_part):
-    """Abstain on a part conflict or a color cue that calls for leaf review."""
+    """Route part conflicts and uncertain leaf conditions to review."""
     if selected_part not in PHOTO_PARTS:
         raise ValueError("Selecciona Hoja o Fruto.")
     if result["abstained"]:
@@ -22,6 +22,9 @@ def apply_review_rules(result, image, selected_part):
     predicted_part = "Fruto" if label.startswith("Fruit_") else "Hoja"
     if selected_part != predicted_part:
         return dict(result, abstained=True), "part_conflict"
+
+    if label == "Cercospora":
+        return dict(result, abstained=True), "cercospora_review"
 
     if label == "Miner" and result["probabilities"].get("Rust", 0) >= 0.075:
         hsv = np.asarray(image.resize((256, 256), Image.Resampling.BILINEAR).convert("HSV"))
