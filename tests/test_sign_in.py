@@ -23,13 +23,13 @@ class SignInTest(unittest.TestCase):
             "if client is None:\n"
             "    st.text('Session discarded')\n"
             "elif session := client.auth.get_session():\n"
-            "    st.text('Administrator' if session.user.app_metadata.get('role') == 'admin' else 'Farmer')\n"
+            "    st.text('Administrator' if session.user.app_metadata.get('role') == 'admin' else 'Caficultor')\n"
             "else:\n"
             "    render_sign_in(client)\n"
         )
         app.session_state["sb"] = client
         app.run()
-        self.assertEqual(app.radio[0].options, ["Farmer", "Administrator"])
+        self.assertEqual(app.radio[0].options, ["Caficultor", "Administrator"])
         app.radio[0].set_value(selected_role)
         app.text_input[0].set_value("farmer@example.test")
         app.text_input[1].set_value("fixture-password")
@@ -38,14 +38,14 @@ class SignInTest(unittest.TestCase):
         return app, client
 
     def test_matching_roles_enter(self):
-        for account_role, selected_role in ((None, "Farmer"), ("admin", "Administrator")):
+        for account_role, selected_role in ((None, "Caficultor"), ("admin", "Administrator")):
             with self.subTest(role=selected_role):
                 app, client = self.submit(account_role, selected_role)
                 self.assertEqual(app.text[0].value, selected_role)
                 client.auth.sign_out.assert_not_called()
 
     def test_mismatched_roles_are_rejected(self):
-        for account_role, selected_role in ((None, "Administrator"), ("admin", "Farmer")):
+        for account_role, selected_role in ((None, "Administrator"), ("admin", "Caficultor")):
             with self.subTest(role=selected_role):
                 app, client = self.submit(account_role, selected_role)
                 self.assertIn("no corresponde", app.error[0].value)

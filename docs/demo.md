@@ -4,7 +4,7 @@
 
 1. **0:00–1:00.** Explain how Farmer captures a photo, gets guidance, and receives follow-up from Administrator.
 2. **1:00–2:00.** Explain the Streamlit, FastAPI, PyTorch, and Supabase architecture. Describe authentication, private photo storage, and consent.
-3. **2:00–4:00.** Select **Farmer**, sign in, and show photo capture and upload. Analyze the berry borer example and find its observation in the history. Switch to an authorized **Administrator** account to show the review queue. Observation code `409d68` is an example of a request for another photo. Use a text file renamed to `invalid.jpg` to demonstrate input validation.
+3. **2:00–4:00.** Select **Caficultor**, sign in, and show photo capture and upload. Analyze the berry borer example and find its observation in the history. Switch to an authorized **Administrator** account to show the review queue. Observation code `409d68` is an example of a request for another photo. Use a text file renamed to `invalid.jpg` to demonstrate input validation.
 4. **4:00–6:00.** Open **Administrator → Evaluación del modelo**. Compare validation accuracy with held-out accuracy and show how coverage changes after abstention. Use the matrix to show the confusion between Cercospora and Phoma and between Phoma and leaf miner.
 5. **6:00–7:00.** Explain the CPU deployment, Render startup delay after idle periods, and the limitations of transferring the results to field photos.
 

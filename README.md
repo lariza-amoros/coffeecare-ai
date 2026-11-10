@@ -2,7 +2,7 @@
 
 CoffeeCare is an academic prototype that uses photos of coffee leaves and fruit to provide farmers with preliminary guidance. [Open CoffeeCare](https://coffeecare-ai.streamlit.app/)
 
-Choose **Farmer** or **Administrator** at sign-in. Farmers can take or upload a photo, save an observation with consent, and read its review. Administrators can review private photos, record a classification, or request another photo. Supabase Auth verifies the account role and row-level policies enforce access to observations, reviews, and files. Public registration creates Farmer accounts.
+Choose **Caficultor** or **Administrator** at sign-in. Farmers can take or upload a photo, save an observation with consent, and read its review. Administrators can review private photos, record a classification, or request another photo. Supabase Auth verifies the account role and row-level policies enforce access to observations, reviews, and files. Public registration creates Farmer accounts.
 
 Streamlit validates each image and calls FastAPI when configured. The API checks the Supabase session and runs the calibrated MobileNetV3-Small checkpoint in PyTorch on CPU. PostgreSQL stores observations and reviews. Supabase Storage holds photos in a private bucket.
 
