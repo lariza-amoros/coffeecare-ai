@@ -132,7 +132,10 @@ def model_scope():
 def result_summary(result, observation_code, review_reason=None):
     with st.container(border=True):
         st.subheader("Resultado de tu foto")
-        if review_reason == "leaf_color":
+        if review_reason == "cercospora_review":
+            st.warning("Posible Cercospora · requiere revisión")
+            st.write("La foto quedó pendiente de revisión. Si puedes, toma otra foto de las manchas con buena luz.")
+        elif review_reason == "leaf_color":
             st.warning("Hoja con señales de daño · causa por revisar")
             st.write("La foto quedó pendiente de revisión. Si puedes, toma otra del envés de la hoja con buena luz.")
         elif review_reason == "part_conflict":
